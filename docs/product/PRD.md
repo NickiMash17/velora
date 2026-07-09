@@ -172,6 +172,8 @@ Tracked here until resolved, then removed and reflected directly into the releva
 2. Should Goal auto-approval (§6.4) really wait for Phase 2, or is there a launch customer for whom that manual-approval-every-time friction kills adoption?
 3. What is the actual trial plan's Digital Employee/spend ceiling (§6.9, BILL-1)? Placeholder numbers need a pricing decision this document doesn't own.
 4. Pricing/packaging itself is explicitly out of scope for this PRD (business strategy, not engineering-adjacent product spec) — needs its own document once decided, referenced here.
+5. **(New, from [UserJourney.md §3](./UserJourney.md#3-primary-journey-founder--org-admin--the-first-15-minutes))** Should DNA ingestion do structured entity extraction (auto-detect products, services, brand voice, suggested departments from an uploaded website/PDFs) rather than only chunk-and-summarize? This is a materially bigger build than DNA-1/DNA-2 as currently scoped — tentatively `DNA-4` — and needs sizing before it's treated as MVP rather than Phase 2.
+6. **(New, from [UserJourney.md §3](./UserJourney.md#3-primary-journey-founder--org-admin--the-first-15-minutes))** Should Velora recommend specific Digital Employee roles based on the org's detected business type/departments, instead of (or alongside) browse-and-hire (EMP-1)? Tentatively `EMP-5` — depends on question 5 above, since a good recommendation needs the extraction it relies on.
 
 ## 11. Traceability
 
