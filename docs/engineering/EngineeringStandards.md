@@ -20,11 +20,16 @@ Module boundaries mirror the domains in [DomainModel.md](../architecture/DomainM
 backend/
   app/
     modules/
-      organizations/
+      identity/            # users, credentials, sessions, JWT/refresh tokens, MFA, SSO — see Security.md §2-3
         domain/          # entities, value objects, domain events — no framework imports
         application/      # use cases / services, orchestrates domain + infrastructure
         infrastructure/   # SQLAlchemy models, repositories, external clients
         api/              # FastAPI routers, Pydantic request/response schemas
+      organizations/       # org profile, plan tier, memberships — Database.md §3.1
+        domain/
+        application/
+        infrastructure/
+        api/
       departments/
       ai_workforce/
       company_dna/

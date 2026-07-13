@@ -3,6 +3,7 @@
 **Status:** Active — Foundational
 **Owner:** Founders
 **Referenced by:** [product/PRD.md](../product/PRD.md), [product/UserJourney.md](../product/UserJourney.md), [product/WireframeSpec.md](../product/WireframeSpec.md), [architecture/AIEmployees.md](../architecture/AIEmployees.md), [architecture/Security.md](../architecture/Security.md), [architecture/Observability.md](../architecture/Observability.md)
+**Companion to:** [/AGENTS.md](../../AGENTS.md) — that file is the terse, always-loaded engineering charter (including its own short form of Principle 1, "The Employee Test"); this document is the grounded elaboration. If the two ever read as saying different things about the same principle, that's a doc-conflict per AGENTS.md's own Repository Rules — fix both in the same change, don't let one drift.
 
 ---
 
