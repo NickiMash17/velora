@@ -1,0 +1,36 @@
+name: velora
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: velora
+      POSTGRES_PASSWORD: velora
+      POSTGRES_DB: velora
+    ports:
+      # Host port 5433, not 5432: this machine already runs a native
+      # postgres.exe bound to 5432, and Windows routes host-side TCP
+      # clients to that instance instead of this container regardless of
+      # Docker's own port publishing. 5433 avoids the collision; the
+      # container's internal port is unaffected.
+      - "5433:5432"
+    volumes:
+      - velora_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U velora -d velora"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  velora_postgres_data:
