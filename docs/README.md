@@ -4,7 +4,7 @@ This is the single source of truth for Velora's product, architecture, and engin
 
 ## Structure
 
-| Folder | Purpose | Audience |
+| Folder / File | Purpose | Audience |
 |---|---|---|
 | [`company/`](./company/README.md) | Mission, vision, values, org structure | Everyone |
 | [`architecture/`](./architecture/README.md) | System design, data models, security, deployment | Engineering |
@@ -12,6 +12,7 @@ This is the single source of truth for Velora's product, architecture, and engin
 | [`product/`](./product/README.md) | Product specs, roadmaps, feature definitions | Product, Engineering, Design |
 | [`design/`](./design/README.md) | Design system, UX guidelines, brand assets | Design, Frontend Engineering |
 | [`pitch/`](./pitch/README.md) | Investor/external-facing materials | Founders, Leadership |
+| [`CHANGELOG.md`](./CHANGELOG.md) | Narrative history of what shipped each sprint/milestone, and why | Everyone |
 
 ## Conventions
 
@@ -23,4 +24,4 @@ This is the single source of truth for Velora's product, architecture, and engin
 
 ## Current Status
 
-Sprint 0 — Foundation. Engineering documentation is being established before feature implementation begins. See [`architecture/README.md`](./architecture/README.md) for the current set of system design documents.
+Sprint 1, Milestone 1 (Platform Foundation) complete — backend and frontend scaffolds, health checks, logging, error handling, and CI-less local verification all in place; no business logic yet. See [`CHANGELOG.md`](./CHANGELOG.md) for what shipped and [`architecture/README.md`](./architecture/README.md) for the system design documents it was built against.
