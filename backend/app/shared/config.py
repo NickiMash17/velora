@@ -45,6 +45,15 @@ class Settings(BaseSettings):
         ...,
         description="Async SQLAlchemy DSN for the table-owning/migration role, Alembic only",
     )
+    # Read by the migration that creates the velora_app role (see
+    # alembic/versions/aa3e8dcefd79_*.py) — not used anywhere else. Kept
+    # out of version control by living only in .env; the migration reads
+    # it via Settings rather than a raw environment variable so it goes
+    # through the same fail-fast, single mechanism as every other secret.
+    velora_app_db_password: str = Field(
+        ...,
+        description="Password for the velora_app role — local-dev only, no secrets management yet",
+    )
     redis_url: str = Field(..., description="Redis connection URL, e.g. redis://localhost:6379/0")
 
     log_level: str = "INFO"

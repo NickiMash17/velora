@@ -70,6 +70,56 @@ async def two_tenants(db_session: AsyncSession) -> TwoTenants:
 
 
 # ---------------------------------------------------------------------
+# 0. The precondition every test below silently depends on: the role
+#    tests (and the running application) connect as must actually be
+#    subject to RLS at all. This is the automated form of the bug that
+#    made every test in this file pass for the wrong reason before it
+#    was found and fixed — see this milestone's completion report.
+#    Postgres superusers, and table owners without FORCE ROW LEVEL
+#    SECURITY, bypass RLS unconditionally regardless of how correct the
+#    policy SQL is; a future migration change that regresses either
+#    property would make this whole file silently meaningless again
+#    without this check.
+# ---------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_app_role_is_not_superuser_and_cannot_bypass_rls(db_session: AsyncSession) -> None:
+    result = await db_session.execute(
+        text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")
+    )
+    row = result.one()
+
+    assert row.rolsuper is False, (
+        "the role tests connect as is a superuser — RLS is bypassed unconditionally "
+        "and every isolation test in this file passes for the wrong reason"
+    )
+    assert row.rolbypassrls is False, (
+        "the role tests connect as has BYPASSRLS — RLS is bypassed unconditionally "
+        "and every isolation test in this file passes for the wrong reason"
+    )
+
+
+@pytest.mark.asyncio
+async def test_tenant_tables_have_rls_enabled_and_forced(db_session: AsyncSession) -> None:
+    result = await db_session.execute(
+        text(
+            "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class "
+            "WHERE relname IN ('organizations', 'organization_memberships', 'events')"
+        )
+    )
+    rows = {row.relname: row for row in result.all()}
+
+    assert set(rows) == {"organizations", "organization_memberships", "events"}
+    for table_name, row in rows.items():
+        assert row.relrowsecurity is True, f"{table_name} does not have RLS enabled"
+        assert row.relforcerowsecurity is True, (
+            f"{table_name} has RLS enabled but not FORCED — the table-owner exemption "
+            "still applies, which is exactly the gap this test exists to catch"
+        )
+
+
+# ---------------------------------------------------------------------
 # 1. Organization data
 # ---------------------------------------------------------------------
 
