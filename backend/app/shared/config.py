@@ -31,7 +31,20 @@ class Settings(BaseSettings):
 
     # Required — no default, so a missing value fails startup immediately
     # rather than surfacing as a confusing error on the first request.
+    #
+    # database_url is the APPLICATION's runtime DSN — connects as a
+    # non-superuser, non-table-owning role (velora_app) so Row-Level
+    # Security actually applies to it. migrations_database_url is a
+    # SEPARATE, more privileged DSN (the table-owning role) used only by
+    # Alembic to run DDL — Postgres superusers/table owners bypass RLS
+    # unconditionally, so the app must never connect with those
+    # credentials. See alembic/versions/aa3e8dcefd79_*.py for how the
+    # velora_app role is created.
     database_url: str = Field(..., description="Async SQLAlchemy DSN, e.g. postgresql+asyncpg://...")
+    migrations_database_url: str = Field(
+        ...,
+        description="Async SQLAlchemy DSN for the table-owning/migration role, Alembic only",
+    )
     redis_url: str = Field(..., description="Redis connection URL, e.g. redis://localhost:6379/0")
 
     log_level: str = "INFO"
