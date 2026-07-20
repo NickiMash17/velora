@@ -38,6 +38,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from app.shared.config import get_settings
+
 from alembic import op
 
 revision: str = "aa3e8dcefd79"
@@ -210,16 +212,21 @@ def upgrade() -> None:
     # despite the policies above being correctly defined — see this
     # milestone's completion report.
     #
-    # The hardcoded password is a known, flagged limitation: real secrets
-    # management (Azure Key Vault, per Deployment.md) is out of scope
-    # here, which only needs a real non-superuser role to exist so RLS is
-    # actually testable.
+    # No password is committed to source: read through the same Settings
+    # mechanism (env-based config, Deployment.md §3) as every other value
+    # here, fed by VELORA_APP_DB_PASSWORD (see .env.example for the
+    # local-dev value). Fails fast, deliberately, if it isn't set — a
+    # silent fallback here would just reintroduce a hardcoded secret one
+    # layer down. Full secrets management (Azure Key Vault, per
+    # Deployment.md) is still required before any non-local deployment;
+    # this only removes the password from version control.
+    _escaped_password = get_settings().velora_app_db_password.replace("'", "''")
     op.execute(
-        """
+        f"""
         DO $$
         BEGIN
             IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'velora_app') THEN
-                CREATE ROLE velora_app LOGIN PASSWORD 'velora_app_dev_only'
+                CREATE ROLE velora_app LOGIN PASSWORD '{_escaped_password}'
                     NOSUPERUSER NOBYPASSRLS;
             END IF;
         END

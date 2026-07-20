@@ -27,6 +27,19 @@ Configuration is environment-based throughout (§3) — the same container image
 - **Secrets management**: Azure Key Vault is the source of truth for all secrets (DB credentials, LLM provider keys, OAuth client secrets, per-tenant encryption keys — [Security.md §6](./Security.md#6-encryption)). Secrets are injected into the runtime environment at container start, never committed to the repository, never baked into a container image.
 - **No environment-specific code branches** — `if environment == "production"` checks in application code are a smell; behavior differences belong in configuration, not conditionals.
 
+### 3.1 Before Non-Local Deployment: Current Gaps
+
+Azure Key Vault above is the target state, not the current one — Sprint 1's identity/organizations work (M2) runs entirely against local Docker Postgres and deliberately hasn't built any of this yet, since it wasn't in scope. Tracked here so it isn't rediscovered the hard way at deploy time:
+
+| Gap | Status | Notes |
+|---|---|---|
+| Hardcoded database passwords | **Closed** (2026-07-20) | The `velora_app` role's password (see [Database.md §3.11](./Database.md#311-event-store) and `alembic/versions/aa3e8dcefd79_*.py`) is no longer committed to source — it's read through `Settings.velora_app_db_password`, fed by `.env` locally. The value itself is still a known, shared local-dev secret, not a per-environment production credential. |
+| Production secrets management (Azure Key Vault) | **Not started** | No Key Vault integration exists. `.env`-based config is correct for `local`; `staging`/`production` need secrets injected at container start per §3's own stated design, which requires actual Key Vault provisioning (Terraform, per §9) and a container startup path that fetches from it — none of which exists yet. |
+| Migration role / application role separation | **Verified locally** ([M2 completion report](../CHANGELOG.md)) | `Settings` carries two DSNs (`database_url` for the app's own `velora_app` role, `migrations_database_url` for the table-owning role Alembic uses) and an automated test (`tests/isolation/test_cross_tenant_isolation.py::test_app_role_is_not_superuser_and_cannot_bypass_rls`) asserts the app-facing role is genuinely non-superuser. Not yet verified against an Azure-provisioned Postgres instance, whose default role/grant setup may differ from the local Docker image's. |
+| RLS under production-like permissions | **Partially verified** | `test_tenant_tables_have_rls_enabled_and_forced` asserts `ENABLE`/`FORCE ROW LEVEL SECURITY` on every tenant-scoped table as part of the normal test suite — this runs against local Docker Postgres only. Needs re-verification against the actual Azure Database for PostgreSQL – Flexible Server instance once one exists, since managed Postgres offerings sometimes provision the connecting role differently (e.g., a non-superuser admin role by default) than the official Docker image does. |
+
+None of these block continued local development. All four must be resolved — not just re-checked — before anything in this repository serves real traffic.
+
 ## 4. Containerization & Topology (v1)
 
 - The backend ships as a single **Docker image** built from the FastAPI application — the modular monolith. Internal module boundaries (Organization, AI Workforce, Company DNA, Memory, Goal Engine, etc.) are enforced by Python package structure and import-linting rules (no module reaching into another's internal package), not by network boundaries — this is what "microservice-ready" means in practice at this stage: extraction later is a deployment change, not a rewrite.
