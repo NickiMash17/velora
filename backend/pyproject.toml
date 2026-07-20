@@ -1,6 +1,16 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# Session-scoped: tests/conftest.py's `migrated_engine` fixture is session-
+# scoped (starting a testcontainers Postgres per test is too slow to do
+# per-test), and asyncpg connections are bound to the event loop that
+# created them. With the default function-scoped test loop, each test gets
+# its own fresh loop, and reusing a session-scoped engine's pooled
+# connections across loops fails intermittently ("Exception terminating
+# connection", coroutines never awaited). Session-scoped loops for both
+# fixtures and tests keep everything on the one loop the engine was built on.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 markers = [
     "integration: requires Docker (spins up real Postgres/Redis via testcontainers)",
 ]
