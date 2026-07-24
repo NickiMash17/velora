@@ -22,8 +22,15 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.flake8-bugbear]
+# `Depends(...)`/`Query(...)`/etc. in argument defaults is the correct,
+# idiomatic FastAPI dependency-injection pattern, not the "mutable
+# default argument" bug B008 exists to catch.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.params.Depends"]
+
 [tool.mypy]
 python_version = "3.13"
+plugins = ["pydantic.mypy"]
 warn_unused_ignores = true
 warn_redundant_casts = true
 disallow_untyped_defs = false
