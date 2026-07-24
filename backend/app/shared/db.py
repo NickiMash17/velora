@@ -1,10 +1,5 @@
-"""Async SQLAlchemy engine and declarative base.
-
-No ORM models are defined against `Base` yet — Milestone 1 has no business
-logic (docs/architecture/AGENTS.md constraint). `Base` exists now purely as
-the registry Alembic's `env.py` needs to point `target_metadata` at; it is
-infrastructure wiring, not a placeholder feature. The first real models
-land with the identity/organizations migrations in Milestone 2.
+"""Async SQLAlchemy engine, declarative base, and the per-request session
+dependency every API route uses to talk to the database.
 """
 
 from __future__ import annotations
@@ -12,6 +7,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from fastapi import Request
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -39,6 +35,18 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
 async def session_scope(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> AsyncIterator[AsyncSession]:
+    async with session_factory() as session:
+        yield session
+
+
+async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency — a fresh AsyncSession per request, from the
+    session factory main.py's lifespan attaches to app.state. Endpoints
+    depend on this directly; application-layer services (e.g.
+    app.modules.identity.application.services) manage their own
+    transaction boundaries on top of the session it yields.
+    """
+    session_factory: async_sessionmaker[AsyncSession] = request.app.state.db_session_factory
     async with session_factory() as session:
         yield session
 

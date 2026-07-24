@@ -51,7 +51,15 @@ def configure_logging(settings: Settings) -> None:
         ],
         wrapper_class=structlog.make_filtering_bound_logger(level),
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
+        # No explicit `file=` here: PrintLogger special-cases "file is the
+        # sys.stdout structlog captured at import time" to mean "call
+        # print() with file=None", which resolves sys.stdout dynamically
+        # on every log call rather than binding to whatever object it was
+        # at configure() time. Passing sys.stdout explicitly would instead
+        # freeze that reference — harmless in production (stdout is never
+        # replaced), but it breaks under pytest's output-capturing
+        # fixtures, which swap sys.stdout out for the duration of a test.
+        logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=True,
     )
 
