@@ -66,7 +66,26 @@ users
   email               text UNIQUE
   password_hash       text NULL              -- NULL if SSO-only
   mfa_enabled          boolean
+  token_version         integer                -- Security.md §3.1 access-token claim; bumped to
+                                                --   invalidate all outstanding access tokens for
+                                                --   this user (added Milestone 3)
   created_at, updated_at
+
+refresh_tokens                                 -- added Milestone 3 — Security.md §3.1 says refresh
+                                                --   tokens are "stored hashed"; this is where.
+                                                --   Not tenant-scoped, no RLS — same reasoning as
+                                                --   `users` (see AIEmployees.md-style module docs).
+  id                  uuid PK
+  user_id             uuid FK -> users
+  token_hash           text UNIQUE             -- SHA-256 of the opaque secret, not Argon2id — see
+                                                --   Security.md's authentication notes: a
+                                                --   high-entropy generated secret needs protection
+                                                --   from DB-dump exposure, not a slow/memory-hard KDF
+  family_id             uuid                    -- groups a chain of rotations for replay detection
+  issued_at              timestamptz
+  expires_at             timestamptz
+  revoked_at             timestamptz NULL
+  replaced_by_id          uuid FK -> refresh_tokens NULL
 
 organization_memberships
   id                  uuid PK

@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
+import httpx
 import pytest
 import pytest_asyncio
 from alembic.config import Config
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -19,8 +21,10 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from testcontainers.postgres import PostgresContainer
+from testcontainers.redis import RedisContainer
 
 from alembic import command
+from app.shared.config import Settings
 
 
 def _run_migrations(async_url: str) -> None:
@@ -83,3 +87,75 @@ async def db_session(migrated_engine: AsyncEngine) -> AsyncIterator[AsyncSession
     session_factory = async_sessionmaker(migrated_engine, expire_on_commit=False)
     async with session_factory() as session:
         yield session
+
+
+@pytest.fixture(scope="session")
+def redis_container() -> RedisContainer:
+    with RedisContainer("redis:7-alpine") as redis:
+        yield redis
+
+
+@pytest_asyncio.fixture
+async def redis_client(redis_container: RedisContainer) -> AsyncIterator[Redis]:
+    """Flushes before each test — rate-limit tests rely on a clean counter
+    space, and the container itself is session-scoped for speed."""
+    host = redis_container.get_container_host_ip()
+    port = redis_container.get_exposed_port(6379)
+    client = Redis.from_url(f"redis://{host}:{port}/0", decode_responses=True)
+    await client.flushdb()
+    yield client
+    await client.aclose()
+
+
+@pytest.fixture
+def auth_settings() -> Settings:
+    """A Settings instance for exercising the identity/auth code paths in
+    isolation from the real local-dev .env — database_url/redis_url are
+    present only because Settings requires them, never actually connected
+    to (application services take `session`/`redis_client` as explicit
+    parameters, not from Settings)."""
+    return Settings(
+        database_url="postgresql+asyncpg://unused:unused@localhost/unused",
+        migrations_database_url="postgresql+asyncpg://unused:unused@localhost/unused",
+        velora_app_db_password="unused",
+        redis_url="redis://localhost:6379/0",
+        jwt_secret_key="test-only-jwt-secret-key-at-least-32-bytes-long",
+        access_token_ttl_minutes=15,
+        refresh_token_ttl_days=30,
+        login_rate_limit_max_attempts=5,
+        login_rate_limit_window_seconds=60,
+    )
+
+
+@pytest_asyncio.fixture
+async def app_client(
+    migrated_engine: AsyncEngine,
+    redis_client: Redis,
+    auth_settings: Settings,
+) -> AsyncIterator[httpx.AsyncClient]:
+    """The shared app-under-test client for identity/auth integration
+    tests. Wires app.dependency_overrides so requests hit the real
+    testcontainers Postgres/Redis and a known auth_settings (jwt secret,
+    ttls, rate-limit thresholds) — deliberately does NOT run the real
+    lifespan (app.main.lifespan), which would connect to local-dev
+    .env-configured infrastructure instead of the containers this session
+    already started."""
+    from app.main import create_app
+    from app.shared.cache import get_redis_client
+    from app.shared.config import get_settings
+    from app.shared.db import get_db_session
+
+    app = create_app()
+    session_factory = async_sessionmaker(migrated_engine, expire_on_commit=False)
+
+    async def _override_get_db_session() -> AsyncIterator[AsyncSession]:
+        async with session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db_session] = _override_get_db_session
+    app.dependency_overrides[get_settings] = lambda: auth_settings
+    app.dependency_overrides[get_redis_client] = lambda: redis_client
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client

@@ -56,6 +56,20 @@ class Settings(BaseSettings):
     )
     redis_url: str = Field(..., description="Redis connection URL, e.g. redis://localhost:6379/0")
 
+    # Signs and verifies access tokens (HS256 — symmetric is correct while
+    # the issuer and validator are the same process; see
+    # docs/architecture/Security.md §3.1 and this milestone's completion
+    # report for why RS256 isn't needed yet). Local-dev only, same
+    # tracked gap as velora_app_db_password until real secrets management
+    # exists (Deployment.md §3.1).
+    jwt_secret_key: str = Field(..., description="HS256 signing key for access tokens")
+    access_token_ttl_minutes: int = Field(15, description="Security.md §3.1: '~15 min'")
+    refresh_token_ttl_days: int = Field(
+        30, description="Not specified in Security.md — a documented M3 decision, not a gap"
+    )
+    login_rate_limit_max_attempts: int = Field(5, description="Per normalized email, per window")
+    login_rate_limit_window_seconds: int = Field(60, description="Fixed window for login attempts")
+
     log_level: str = "INFO"
 
     cors_allow_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
@@ -68,4 +82,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Cached settings singleton — env is read once per process, not per request."""
-    return Settings()  # type: ignore[call-arg]  # required fields come from the environment, not the constructor call
+    return Settings()
