@@ -1,7 +1,7 @@
 """FastAPI application assembly — wires routers and middleware, not business
-logic (docs/engineering/EngineeringStandards.md §2.1). No versioned /v1
-router exists yet: Milestone 1 has no business endpoints, only health checks,
-which are deliberately unversioned (docs/architecture/API.md §3)."""
+logic (docs/engineering/EngineeringStandards.md §2.1). Health checks are
+deliberately unversioned (docs/architecture/API.md §3); business endpoints
+(Milestone 3 onward) live under /v1."""
 
 from __future__ import annotations
 
@@ -11,9 +11,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from app.modules.identity.api.router import router as identity_router
 from app.shared.cache import create_redis_client
 from app.shared.config import get_settings
-from app.shared.db import create_engine
+from app.shared.db import create_engine, create_session_factory
 from app.shared.errors import register_exception_handlers
 from app.shared.health import router as health_router
 from app.shared.logging import configure_logging, get_logger
@@ -28,6 +29,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(settings)
 
     app.state.db_engine = create_engine(settings)
+    app.state.db_session_factory = create_session_factory(app.state.db_engine)
     app.state.redis_client = create_redis_client(settings)
 
     logger.info("app_startup", environment=settings.environment)
@@ -63,6 +65,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     app.include_router(health_router)
+    app.include_router(identity_router, prefix="/v1")
 
     return app
 
