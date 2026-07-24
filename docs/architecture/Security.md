@@ -30,6 +30,24 @@ Every action in the system must be attributable to exactly one identity of one o
 2. Access token claims: `sub` (user or ai_employee id), `organization_id`, `roles`, `token_version` (enables fast revocation without a DB lookup on the hot path).
 3. The API Gateway validates signature + expiry locally (no round-trip per request); a background revocation-list sync via the Event Bus propagates compromised-token kill-switches within seconds, not on the next token refresh cycle.
 
+**Milestone 3 note:** a freshly-registered user belongs to no organization yet (organization creation is a separate concern — see [DomainModel.md](./DomainModel.md)). Its access token therefore carries only `sub`, `token_version`, `iat`, `exp` — `organization_id`/`roles` are simply absent, not null placeholders. This is the natural pre-scoping state §3.2 already assumes exists ("switching organizations issues an entirely new scoped token"); a future milestone's org-creation/switching flow is what first populates those claims, by issuing a new, fuller token — it does not change how this section's base claims work.
+
+HS256 (symmetric), not RS256, for now: the issuer and validator are the same process while there is no separate Gateway service ([Deployment.md §4](./Deployment.md#4-containerization--topology-v1)). RS256 becomes necessary once a Gateway needs to verify tokens without holding the signing secret — revisit at that point, not before.
+
+### 3.1.1 Password Storage
+
+Not specified elsewhere in this document until Milestone 3: passwords are hashed with **Argon2id** (`argon2-cffi`), OWASP's current default recommendation and the successor to bcrypt (memory-hard, resistant to GPU/ASIC-accelerated cracking). Password policy is minimum length only (8 characters) — per NIST 800-63B, composition rules (forced symbols/digits) are deliberately not used, since they push users toward predictable patterns without meaningfully raising entropy. Breach-list checking (e.g. an HaveIBeenPwned range-query lookup) is a valuable future addition, not a v1 requirement — it's a new external network dependency, out of proportion with Milestone 3's scope.
+
+### 3.1.2 Refresh Token Lifecycle (v1 Implementation)
+
+Not specified precisely enough elsewhere to implement blind — this is the concrete lifecycle Milestone 3 built, and future milestones should treat it as documented behavior, not re-derive it:
+
+- **Storage:** an opaque, high-entropy secret (`secrets.token_urlsafe(32)`), never a JWT — nothing needs to inspect a refresh token's contents, it's purely a lookup key. Stored as a SHA-256 hash (not Argon2id — a generated high-entropy secret needs protection from database-dump exposure, not resistance to offline brute-force of a low-entropy human-chosen value, so a fast cryptographic hash is the correct, sufficient tool).
+- **Rotation:** every successful refresh issues a new refresh token and immediately revokes the one presented (`revoked_at` set, `replaced_by_id` linked) — refresh tokens are single-use.
+- **Family tracking:** every token descended from one login shares a `family_id`. Rotation preserves the family; it is never reset.
+- **Replay protection:** presenting a token that has already been rotated (`revoked_at` is set) revokes the **entire family**, not just that one token — reuse of a dead token is the signal a refresh token has been stolen, and the correct response is to kill every token descended from the same login, forcing full re-authentication.
+- **Expiry:** 30 days from issuance (configurable — `Settings.refresh_token_ttl_days`), sliding in the sense that each rotation gets a fresh 30-day window, not counted from the original login.
+
 ### 3.2 Multi-Org Scoping
 
 A human user may belong to multiple organizations (e.g., an agency managing client orgs — [Database.md §3.1](./Database.md#31-identity--organization)). A session token is scoped to **exactly one active organization at a time**. Switching organizations issues an entirely new scoped token rather than expanding the claims of the existing one — this is what makes cross-tenant data bleed via a stale or reused token structurally impossible, not just policy-discouraged.
@@ -115,6 +133,12 @@ Hard per-invocation and per-Department token/spend ceilings enforced at the **Mo
 
 - Token-bucket limits per organization, per API key, and **per Digital Employee** — the per-employee limit exists specifically so a single runaway agent loop cannot starve the tenant's other Digital Employees, or (at the cell/infra level) other tenants.
 - Input validation at every service boundary — request schema validation at the Gateway, and skill-input validation against each skill's declared JSON Schema before execution ([Database.md §3.3](./Database.md#33-ai-workforce), `skills.input_schema`).
+
+### 10.1 Login Rate Limiting
+
+A distinct problem from the above — brute-force login protection, not AI-runtime resource abuse — and one this document didn't specify until Milestone 3 built it. A Redis **fixed window** counter (`INCR` + `EXPIRE`, not a token bucket — simple, no Lua scripting, and correct enough for "block after N attempts in M seconds"), keyed on the **normalized email only**, deliberately with no organization/tenant dimension: login happens before any tenant context exists, so keying this on anything org-related would be a real mistake, not just an unnecessary one.
+
+The counter increments **before** the credential check, unconditionally — this is what keeps rate-limit behavior identical whether or not the given email corresponds to a real account, satisfying "never reveal whether an email exists" the same way the login response itself does. Default: 5 attempts per 60-second window (`Settings.login_rate_limit_max_attempts`/`login_rate_limit_window_seconds`), returning `429` with `retry_after_seconds` in the error envelope's `details`.
 
 ## 11. Non-Goals (v1)
 

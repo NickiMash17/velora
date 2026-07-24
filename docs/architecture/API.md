@@ -32,6 +32,19 @@ This document defines Velora's API design conventions: versioning, request/respo
 - Clients never send `organization_id` as a request parameter for tenant scoping — it is derived server-side from the token/subdomain at the Gateway and propagated internally via the signed Tenant Context Token ([Security.md §3.3](./Security.md#33-tenant-context-propagation)). Any endpoint that appears to accept a client-supplied tenant identifier for scoping purposes is a bug, not a feature.
 - API keys (for partner/integration use) follow the same tenant-resolution path, scoped at issuance to one organization and a defined permission set.
 
+### 4.1 Authentication Endpoints (Milestone 3)
+
+This document didn't specify auth endpoint shapes precisely enough to implement blind — the decision, so it doesn't get re-litigated per-endpoint later:
+
+| Endpoint | Shape | Why |
+|---|---|---|
+| `POST /v1/users` | Resource creation (register) | Follows §2's resource-oriented convention directly — creating a user is creating the `users` resource. |
+| `GET /v1/users/me` | Resource read, protected | Same convention; `me` resolves via the authenticated-user dependency, not a client-supplied id — proves that dependency end-to-end. |
+| `POST /v1/auth/login` | Action, not resource CRUD | Session/token issuance isn't a resource operation. This is the same kind of conventionally-accepted exception §5 already makes for the async task pattern — a standard REST-CRUD shape doesn't fit, and inventing one would be worse than a small, named action endpoint. |
+| `POST /v1/auth/refresh` | Action, not resource CRUD | Same reasoning as login. |
+
+No new precedent beyond these four — a future endpoint that doesn't map cleanly to a resource should be justified the same way, not treated as a general license for action-style endpoints.
+
 ## 5. The Async Task Pattern
 
 Anything that touches the AI Runtime Plane (Digital Employee invocation, goal decomposition, skill execution with external side effects) does not run synchronously inside the HTTP request. Instead:
