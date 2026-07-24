@@ -22,7 +22,10 @@ from app.shared.db import Base  # noqa: E402
 # themselves are the point. Add a line whenever a module gains its first
 # ORM model.
 from app.modules.events.infrastructure.orm import EventORM  # noqa: E402,F401
-from app.modules.identity.infrastructure.orm import UserORM  # noqa: E402,F401
+from app.modules.identity.infrastructure.orm import (  # noqa: E402,F401
+    RefreshTokenORM,
+    UserORM,
+)
 from app.modules.organizations.infrastructure.orm import (  # noqa: E402,F401
     OrganizationMembershipORM,
     OrganizationORM,
