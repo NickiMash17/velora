@@ -32,3 +32,4 @@ What this makes easier, what it makes harder, what it defers.
 | ADR | Title | Status |
 |---|---|---|
 | [0001](./0001-event-store-implementation.md) | Event Store implementation: Postgres + Redis Streams instead of a broker (v1) | Accepted |
+| [0002](./0002-organization-membership-self-visibility.md) | Organization membership self-visibility RLS policy | Accepted |
