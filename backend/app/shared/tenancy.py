@@ -32,6 +32,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 _SET_TENANT_CONTEXT = text("SELECT set_config('app.current_org_id', :organization_id, true)")
+_SET_USER_CONTEXT = text("SELECT set_config('app.current_user_id', :user_id, true)")
 
 
 async def set_tenant_context(session: AsyncSession, organization_id: UUID) -> None:
@@ -56,4 +57,30 @@ async def tenant_scoped_transaction(
     """
     async with session.begin():
         await set_tenant_context(session, organization_id)
+        yield session
+
+
+@asynccontextmanager
+async def user_scoped_transaction(
+    session: AsyncSession, user_id: UUID
+) -> AsyncIterator[AsyncSession]:
+    """Opens a transaction with `app.current_user_id` set instead of
+    `app.current_org_id` — for exactly one purpose: letting a user
+    discover which organization(s) they belong to before any tenant
+    context exists at all (see
+    docs/architecture/decisions/0002-organization-membership-self-visibility.md).
+
+    This must NEVER be used for anything but
+    OrganizationMembershipRepository.list_for_user's SELECT. The RLS
+    policy this context activates (`self_visibility` on
+    `organization_memberships`) is deliberately scoped `FOR SELECT` only
+    — it has no `WITH CHECK` and cannot govern INSERT/UPDATE regardless
+    of what predicate it's given, so using this helper for a write would
+    simply fail closed under `tenant_isolation`, not silently succeed
+    against the wrong organization. Still: don't use this for anything
+    else. If a future case needs write access, it needs tenant context
+    (tenant_scoped_transaction), not user context.
+    """
+    async with session.begin():
+        await session.execute(_SET_USER_CONTEXT, {"user_id": str(user_id)})
         yield session
