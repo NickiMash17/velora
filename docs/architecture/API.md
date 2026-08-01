@@ -45,6 +45,19 @@ This document didn't specify auth endpoint shapes precisely enough to implement 
 
 No new precedent beyond these four — a future endpoint that doesn't map cleanly to a resource should be justified the same way, not treated as a general license for action-style endpoints.
 
+### 4.2 Organization Endpoints (Milestone 4)
+
+| Endpoint | Shape | Why |
+|---|---|---|
+| `GET /v1/organizations` | Resource read (list), protected | Lists the organizations the current user is an active member of — §2's resource-oriented convention; scoped to "mine" implicitly since there is no cross-user listing capability in this platform at all. |
+| `GET /v1/organizations/me` | Resource read, protected | Same convention as `GET /v1/users/me`; resolves from the current access token's `organization_id` claim, not a client-supplied id. Returns `404 no_organization_context` (not `401`) if the current token isn't scoped to an organization yet — the caller *is* authenticated, they just haven't created or selected one, which is what the frontend uses to decide between showing onboarding and the dashboard. |
+| `POST /v1/organizations` | Resource creation, doubling as session issuance | Creating an organization and becoming its `org_admin` also scopes the caller's session to it in the same call (`{organization, tokens}`) — justified the same way `§4.1`'s login/refresh already are: this is Security.md §3.2's "switching organizations issues an entirely new scoped token," and the founding-admin case has no meaningful "create without entering" intermediate state to model as separate resource operations. |
+| `POST /v1/organizations/{id}/select` | Action, not resource CRUD | The explicit "switching" flow for a returning user who already belongs to one or more organizations (login itself always issues an org-less token — see Security.md §3.1). Same `{organization, tokens}` response shape as create, so the majority-case path (exactly one organization) never needs an extra round trip. |
+
+Both `POST` endpoints require the caller's current `refresh_token` in the request body, alongside the bearer access token — organization scoping is implemented as a rotation of the existing refresh-token family (Security.md §3.1.2), not a bearer-only action, so the specific token being rotated has to be named explicitly, the same way `POST /v1/auth/refresh` already requires it.
+
+No user-visible `slug` field on `POST /v1/organizations` — see [WireframeSpec.md §5](../product/WireframeSpec.md#5-organization-creation): a slug is generated from `name` server-side, with an invisible retry-on-collision, since slug conflicts are an internal implementation detail no user should ever have to resolve.
+
 ## 5. The Async Task Pattern
 
 Anything that touches the AI Runtime Plane (Digital Employee invocation, goal decomposition, skill execution with external side effects) does not run synchronously inside the HTTP request. Instead:

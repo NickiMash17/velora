@@ -38,6 +38,8 @@ def _refresh_token_to_domain(row: RefreshTokenORM) -> RefreshToken:
         token_hash=row.token_hash,
         family_id=row.family_id,
         expires_at=row.expires_at,
+        organization_id=row.organization_id,
+        role=row.role,
         revoked_at=row.revoked_at,
         replaced_by_id=row.replaced_by_id,
         issued_at=row.issued_at,
@@ -91,6 +93,8 @@ class RefreshTokenRepository:
                 token_hash=token.token_hash,
                 family_id=token.family_id,
                 expires_at=token.expires_at,
+                organization_id=token.organization_id,
+                role=token.role,
             )
         )
         await session.flush()

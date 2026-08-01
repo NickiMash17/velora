@@ -79,16 +79,26 @@ async def _issue_token_pair_for_user(
     refresh_token_repo: RefreshTokenRepository,
     *,
     family_id: uuid.UUID,
+    organization_id: uuid.UUID | None = None,
+    role: str | None = None,
 ) -> tuple[TokenPair, uuid.UUID]:
     """Returns the token pair alongside the new refresh token row's id —
     callers rotating an existing token need that id to record what it was
     replaced by (see refresh_session); a fresh login has no prior token
-    to link, so it just discards the second element."""
+    to link, so it just discards the second element.
+
+    `organization_id`/`role` scope the issued session to one organization
+    — omitted for a fresh login (always org-less, see authenticate_user),
+    passed through by refresh_session either to preserve the rotated
+    token's existing scope or to change it (Milestone 4's organization
+    creation/selection flows)."""
     access_token = issue_access_token(
         user_id=user.id,
         token_version=user.token_version,
         secret_key=settings.jwt_secret_key,
         ttl_minutes=settings.access_token_ttl_minutes,
+        organization_id=organization_id,
+        role=role,
     )
 
     refresh_secret = generate_refresh_token_secret()
@@ -99,6 +109,8 @@ async def _issue_token_pair_for_user(
         token_hash=hash_refresh_token(refresh_secret),
         family_id=family_id,
         expires_at=datetime.now(UTC) + timedelta(days=settings.refresh_token_ttl_days),
+        organization_id=organization_id,
+        role=role,
     )
     await refresh_token_repo.create(session, refresh_token)
 
@@ -147,6 +159,8 @@ async def refresh_session(
     settings: Settings,
     *,
     refresh_token: str,
+    organization_id: uuid.UUID | None = None,
+    role: str | None = None,
     user_repo: UserRepository | None = None,
     refresh_token_repo: RefreshTokenRepository | None = None,
 ) -> TokenPair:
@@ -155,6 +169,19 @@ async def refresh_session(
     request — reuse of a dead token is the signal a refresh token has
     been stolen, per this milestone's documented decision (Security.md
     doesn't specify a lifecycle precisely enough to leave this unstated).
+
+    `organization_id`/`role` are an override, not a requirement: omitted
+    (the plain `/v1/auth/refresh` call site), the rotated token PRESERVES
+    whatever organization scope the token being replaced already had —
+    letting an org-scoped session silently downgrade to org-less on its
+    next refresh would break Security.md §3.2's model within about 15
+    minutes of normal use. Supplied (Milestone 4's organization
+    creation/selection flows, which call this with the user's *current*
+    refresh token plus the org/role to switch into), the new token gets
+    the override instead — this is Security.md §3.2's "switching
+    organizations issues an entirely new scoped token," implemented as a
+    rotation within the same family rather than a second, independent,
+    never-revoked one.
     """
     user_repo = user_repo or UserRepository()
     refresh_token_repo = refresh_token_repo or RefreshTokenRepository()
@@ -191,6 +218,10 @@ async def refresh_session(
                 user,
                 refresh_token_repo,
                 family_id=existing.family_id,
+                organization_id=(
+                    organization_id if organization_id is not None else existing.organization_id
+                ),
+                role=role if role is not None else existing.role,
             )
             await refresh_token_repo.mark_rotated(session, existing.id, new_token_id)
 

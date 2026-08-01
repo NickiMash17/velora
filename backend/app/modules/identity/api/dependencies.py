@@ -45,7 +45,18 @@ async def get_current_user(
     except InvalidAccessTokenError as exc:
         raise UnauthorizedHTTPError("Invalid access token.") from exc
 
-    user = await UserRepository().get_by_id(session, claims.sub)
+    # Explicitly wrapped in a transaction (even though this is a pure
+    # read) rather than relying on SQLAlchemy's implicit autobegin:
+    # autobegin opens a transaction on the session that stays open until
+    # something closes it, and this dependency runs before every
+    # protected endpoint's own body — a handler or service that then
+    # tries its own `async with session.begin():` (e.g.
+    # app.shared.tenancy's tenant_scoped_transaction/user_scoped_transaction)
+    # would hit "A transaction is already begun on this Session" instead
+    # of opening its own. Committing here is harmless (nothing was
+    # written) and leaves the session clean for whatever runs next.
+    async with session.begin():
+        user = await UserRepository().get_by_id(session, claims.sub)
     if user is None:
         raise UnauthorizedHTTPError("Invalid access token.")
 
