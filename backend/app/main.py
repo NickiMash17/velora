@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from app.modules.identity.api.router import router as identity_router
+from app.modules.organizations.api.router import router as organizations_router
 from app.shared.cache import create_redis_client
 from app.shared.config import get_settings
 from app.shared.db import create_engine, create_session_factory
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(identity_router, prefix="/v1")
+    app.include_router(organizations_router, prefix="/v1")
 
     return app
 
