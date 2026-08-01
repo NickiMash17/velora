@@ -137,6 +137,8 @@ This mirrors RBAC as defined in [Security.md §5](../architecture/Security.md#5-
 **Purpose:** Create the tenancy root and its first Department(s). Satisfies `ORG-1`, `ORG-3` ([PRD.md §6.1](./PRD.md#61-organization-onboarding)).
 **Primary user:** Founder / first `org_admin`.
 
+**Milestone 4 note:** M4 implements only the `ORG-1` slice of this screen — organization name, submit, become `org_admin`, land on the dashboard. Industry/team-size/region fields and Department suggestions (the `ORG-3` slice, which depends on an industry selection this milestone doesn't collect) are deliberately not built yet; they're a documented gap, not an oversight. Region defaults to `us` at the service layer until a residency-pin decision is actually needed. The states/actions below describe the full eventual screen; M4's version is the "Components" list minus Department suggestions, and "Actions" minus adjusting them.
+
 **Components**
 - Organization name, industry, team size, country/region (drives data residency pin — [Database.md §2](../architecture/Database.md#2-multi-tenancy-model))
 - Initial Department suggestions (pre-filled from industry selection at this stage; refined further once Company DNA is built — see §6's cross-reference to `DNA-4`)
@@ -153,7 +155,7 @@ This mirrors RBAC as defined in [Security.md §5](../architecture/Security.md#5-
 | Empty | N/A — this screen only exists pre-organization |
 | Loading | Brief inline spinner on submit — this is a fast synchronous operation, not routed through the async task pattern |
 | Error | Field validation (required fields); organization slug conflict resolved automatically (no user-visible slug concept at all — internal detail) rather than surfaced as an error the user has to solve |
-| Success | Immediate transition to Company DNA Upload (§6) — no intermediate confirmation screen; momentum matters more than confirmation here |
+| Success | Immediate transition to Company DNA Upload (§6) — no intermediate confirmation screen; momentum matters more than confirmation here. **Milestone 4:** transitions to the (minimal) Dashboard directly instead — Company DNA Upload isn't built yet. |
 
 **Navigation:** Cannot be reached once an organization already exists for the current session except via "Create another organization" from the org switcher.
 **Responsive behavior:** Single-column form; Department suggestion chips wrap rather than horizontally scroll on narrow viewports.
@@ -192,6 +194,8 @@ This mirrors RBAC as defined in [Security.md §5](../architecture/Security.md#5-
 
 **Purpose:** The home screen — at-a-glance workforce activity, what needs the user's attention, and quick paths into the rest of the product.
 **Primary user:** All roles; content emphasis shifts by role (§2.3).
+
+**Milestone 4 note:** every component and state below assumes Digital Employees/Goals exist, which M4 does not build. M4's dashboard is deliberately a smaller, honest placeholder — organization name/plan/status, the current user's role, and sign-out — not an early version of this spec's widgets. Building toward this full spec is later milestones' work, once there's real workforce data to show; a hire-CTA hero or empty widget pointing at a feature that doesn't exist yet would be exactly the "fake widget" this platform's engineering charter rules out.
 
 **Components**
 - Approval queue widget (items flagged `approve` — `OVR-1`)

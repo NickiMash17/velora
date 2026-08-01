@@ -84,6 +84,12 @@ refresh_tokens                                 -- added Milestone 3 — Security
   family_id             uuid                    -- groups a chain of rotations for replay detection
   issued_at              timestamptz
   expires_at             timestamptz
+  organization_id        uuid FK -> organizations NULL  -- added Milestone 4: mirrors the access
+                                                --   token's own claims, so rotation can preserve or
+                                                --   change organization scope (Security.md §3.1.2)
+  role                   text NULL              -- added Milestone 4: plain string, not the
+                                                --   membership_role enum — identity has no
+                                                --   knowledge of the organizations module's types
   revoked_at             timestamptz NULL
   replaced_by_id          uuid FK -> refresh_tokens NULL
 
@@ -95,6 +101,11 @@ organization_memberships
   status               enum(invited, active, suspended)
   created_at, updated_at
   UNIQUE (organization_id, user_id)
+  -- RLS (Milestone 4): a SECOND, SELECT-only permissive policy grants
+  -- self-visibility (user_id = app.current_user_id), alongside the
+  -- original tenant_isolation policy (organization_id = app.current_org_id)
+  -- — see ADR 0002 for why a user discovering their own organization
+  -- memberships needs this and why it's deliberately SELECT-only.
 ```
 
 A `user` can belong to multiple organizations (agencies managing client orgs) via multiple `organization_memberships` rows — see [Security.md §3](./Security.md#3-session--token-model) for how session tokens scope to exactly one active org at a time.
