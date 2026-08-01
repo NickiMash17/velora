@@ -8,10 +8,15 @@ needs to verify tokens without holding the signing secret; adopting it
 now would be exactly the premature complexity AGENTS.md warns against.
 
 Claims, per docs/architecture/Security.md §3.1: `sub`, `token_version`,
-plus standard `iat`/`exp`. `organization_id` and `roles` are documented
-claims this milestone deliberately omits — see this milestone's
-completion report for why (M3 must not create organizations, so there is
-no org/role context yet to put in a token).
+plus standard `iat`/`exp` — always present. `organization_id` and `role`
+(singular: a token scopes to exactly one organization, and
+`organization_memberships` has a UNIQUE(organization_id, user_id)
+constraint, so there is exactly one role per org per user) are present
+only once a session has been scoped to an organization (Milestone 4's
+organization-creation/selection flow — see
+app/modules/identity/application/services.py's `refresh_session`).
+Omitted entirely when absent, per Security.md's explicit "claims are
+simply absent, not null placeholders."
 """
 
 from __future__ import annotations
@@ -42,18 +47,34 @@ class AccessTokenClaims:
     token_version: int
     issued_at: datetime
     expires_at: datetime
+    organization_id: UUID | None = None
+    role: str | None = None
 
 
 def issue_access_token(
-    *, user_id: UUID, token_version: int, secret_key: str, ttl_minutes: int
+    *,
+    user_id: UUID,
+    token_version: int,
+    secret_key: str,
+    ttl_minutes: int,
+    organization_id: UUID | None = None,
+    role: str | None = None,
 ) -> str:
     now = datetime.now(UTC)
-    payload = {
+    payload: dict[str, object] = {
         "sub": str(user_id),
         "token_version": token_version,
         "iat": now,
         "exp": now + timedelta(minutes=ttl_minutes),
     }
+    # Included only when present — Security.md: "claims are simply
+    # absent, not null placeholders." Both are always set together
+    # (organization_id implies role and vice versa); see refresh_session's
+    # docstring for why they can never independently be None/not-None.
+    if organization_id is not None:
+        payload["organization_id"] = str(organization_id)
+    if role is not None:
+        payload["role"] = role
     return jwt.encode(payload, secret_key, algorithm=_JWT_ALGORITHM)
 
 
@@ -66,11 +87,14 @@ def decode_access_token(token: str, *, secret_key: str) -> AccessTokenClaims:
         raise InvalidAccessTokenError from exc
 
     try:
+        organization_id_raw = payload.get("organization_id")
         return AccessTokenClaims(
             sub=UUID(payload["sub"]),
             token_version=payload["token_version"],
             issued_at=datetime.fromtimestamp(payload["iat"], tz=UTC),
             expires_at=datetime.fromtimestamp(payload["exp"], tz=UTC),
+            organization_id=UUID(organization_id_raw) if organization_id_raw else None,
+            role=payload.get("role"),
         )
     except (KeyError, ValueError, TypeError) as exc:
         # Well-formed JWT (valid signature) but missing/malformed claims —

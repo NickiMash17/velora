@@ -31,6 +31,56 @@ def test_issued_token_decodes_with_matching_claims() -> None:
 
     assert claims.sub == user_id
     assert claims.token_version == 3
+    assert claims.organization_id is None
+    assert claims.role is None
+
+
+def test_issued_token_with_organization_scope_round_trips() -> None:
+    user_id = uuid.uuid4()
+    organization_id = uuid.uuid4()
+    token = issue_access_token(
+        user_id=user_id,
+        token_version=0,
+        secret_key=_SECRET,
+        ttl_minutes=15,
+        organization_id=organization_id,
+        role="org_admin",
+    )
+
+    claims = decode_access_token(token, secret_key=_SECRET)
+
+    assert claims.organization_id == organization_id
+    assert claims.role == "org_admin"
+
+
+def test_org_less_token_has_no_organization_claims_at_all() -> None:
+    token = issue_access_token(
+        user_id=uuid.uuid4(), token_version=0, secret_key=_SECRET, ttl_minutes=15
+    )
+
+    payload = jwt.decode(token, _SECRET, algorithms=["HS256"])
+
+    assert "organization_id" not in payload
+    assert "role" not in payload
+
+
+def test_pre_m4_shaped_token_still_decodes() -> None:
+    # Simulates a token issued before organization_id/role existed —
+    # decode_access_token must read the new claims via .get(...), never
+    # indexing, so an in-flight M3-era token keeps working.
+    now = datetime.now(UTC)
+    payload = {
+        "sub": str(uuid.uuid4()),
+        "token_version": 0,
+        "iat": now,
+        "exp": now + timedelta(minutes=15),
+    }
+    token = jwt.encode(payload, _SECRET, algorithm="HS256")
+
+    claims = decode_access_token(token, secret_key=_SECRET)
+
+    assert claims.organization_id is None
+    assert claims.role is None
 
 
 def test_token_signed_with_a_different_secret_is_rejected() -> None:
