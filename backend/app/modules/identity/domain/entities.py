@@ -50,6 +50,18 @@ class RefreshToken:
     # app/modules/identity/application/services.py's refresh_session.
     family_id: UUID
     expires_at: datetime
+    # Milestone 4: the organization/role this token's session is scoped
+    # to, if any — mirrors the access token's own claims (see
+    # infrastructure/tokens.py's AccessTokenClaims) so that rotating a
+    # refresh token can carry that scope forward instead of silently
+    # dropping it. Always both-None or both-set together: a session is
+    # either unscoped or scoped to exactly one organization with exactly
+    # one role in it (organization_memberships' UNIQUE(organization_id,
+    # user_id) constraint). `role` is a plain string, never
+    # organizations.domain.enums.MembershipRole — identity has no
+    # knowledge of that module's types.
+    organization_id: UUID | None = None
+    role: str | None = None
     revoked_at: datetime | None = None
     # Points at the token that replaced this one, for audit purposes —
     # not used in any authorization decision.

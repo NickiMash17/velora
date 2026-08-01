@@ -53,6 +53,14 @@ class RefreshTokenORM(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Milestone 4 — see domain/entities.py's RefreshToken docstring. A
+    # plain nullable String, not the organizations module's Postgres
+    # `membership_role` enum type: identity has no import-time knowledge
+    # of that module's types, only the string value a caller passes in.
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True
+    )
+    role: Mapped[str | None] = mapped_column(String, nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     replaced_by_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("refresh_tokens.id"), nullable=True
