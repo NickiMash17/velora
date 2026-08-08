@@ -40,7 +40,7 @@ function MeridianLine({
       aria-live="polite"
       aria-label="Organization activity"
       className={cn(
-        "flex h-10 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/85 px-4 backdrop-blur-sm sm:px-6",
+        "flex h-(--meridian-line-height) shrink-0 items-center justify-between gap-4 border-b border-border bg-background/85 px-4 backdrop-blur-sm sm:px-6",
         className
       )}
     >

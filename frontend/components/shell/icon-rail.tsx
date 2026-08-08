@@ -23,7 +23,7 @@ function IconRail() {
   return (
     <nav
       aria-label="Primary"
-      className="flex w-16 shrink-0 flex-col items-center gap-1 border-r border-border py-4"
+      className="hidden w-(--rail-width) shrink-0 flex-col items-center gap-1 border-r border-border py-4 sm:flex"
     >
       {NAV_ITEMS.map((item) => {
         const isActive = pathname === item.href;

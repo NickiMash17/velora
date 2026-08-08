@@ -38,6 +38,14 @@
   --duration-micro: 120ms;
   --duration-component: 200ms;
   --duration-structural: 320ms;
+
+  /* Layout dimensions (docs/design/Wireframes.md §1) — mode-invariant.
+     Referenced via `w-(--rail-width)` etc. so any future screen can share
+     these exact constants (e.g. `calc(100vh - var(--shell-header-height))`)
+     instead of re-guessing the shell's own hardcoded sizes. */
+  --rail-width: 4rem;
+  --shell-header-height: 3.5rem;
+  --meridian-line-height: 2.5rem;
 }
 
 @theme inline {
@@ -121,6 +129,13 @@
      (DesignSystem.md §9, UXPrinciples.md §2 category 2). Generates the
      animate-meridian-pulse utility, consumed by LiveDot. */
   --animate-meridian-pulse: meridian-pulse 2.2s ease-in-out infinite;
+
+  /* Elevation (DesignSystem.md §7) — Level 2 "Raised" (dropdowns, popovers,
+     tooltips) and Level 3 "Overlay" (dialogs). Generates shadow-meridian-
+     raised / shadow-meridian-overlay utilities; values are mode-aware,
+     set in the semantic :root/.dark blocks below. */
+  --shadow-meridian-raised: var(--shadow-raised);
+  --shadow-meridian-overlay: var(--shadow-overlay);
 }
 
 @keyframes meridian-pulse {
@@ -155,6 +170,9 @@
   --input: #0e10131a;
   --ring: var(--signal-500);
   --signal: var(--signal-500);
+  --shadow-raised: 0 4px 16px rgba(14, 16, 19, 0.08);
+  --shadow-overlay: 0 12px 32px rgba(14, 16, 19, 0.16);
+  --scrim: rgba(14, 16, 19, 0.4);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -191,6 +209,14 @@
   --input: #f6f4ef33;
   --ring: var(--signal-dark);
   --signal: var(--signal-dark);
+  /* Dark mode's ground is already Ink — an Ink-tinted shadow/scrim would be
+     invisible against it, so both use black at a higher opacity instead
+     (DesignSystem.md §7 doesn't specify a dark-mode value; this is the
+     documented judgment call that makes the same depth cue legible in
+     both modes). */
+  --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.32);
+  --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.48);
+  --scrim: rgba(0, 0, 0, 0.6);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

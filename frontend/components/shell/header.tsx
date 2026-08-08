@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
  */
 function Header({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border px-4 sm:px-6">
+    <header className="flex h-(--shell-header-height) shrink-0 items-center justify-between gap-4 border-b border-border px-4 sm:px-6">
       <h2 className="text-h3 font-semibold tracking-tight">{title}</h2>
       <div className="flex items-center gap-3">
         {right}
