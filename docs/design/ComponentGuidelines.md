@@ -21,7 +21,14 @@ Match the pattern already established in `frontend/components/ui/` (a `cva`-base
 
 ## 2. Primitive inventory
 
-Existing (keep as-is): `Button`, `Card` (+ Header/Title/Description/Action/Content/Footer), `ThemeToggle`, `Input`, `Label`.
+**Built (Stage 0 — `docs/design/Stage0-Migration.md`):** `Button`, `Card`
+(+ Header/Title/Description/Action/Content/Footer), `ThemeToggle`, `Input`,
+`Label`, `Badge`, `Tooltip`, `Skeleton`, `LoadingState`, `FormError`,
+`LiveDot`, `Avatar`, `DropdownMenu`, `Dialog`, `Tabs`, `Separator`,
+`EmptyState`, `Toast` (typed helper over `sonner`). Layout primitives:
+`CenteredScreen`, `Stack`, `Cluster`, `Grid`, `Section`, `ContentContainer`,
+`SplitPanel`, `PageHeader`. Shell: `AppShell`, `Header`, `IconRail`,
+`MeridianLine`, `AccountMenu`.
 
 Needed, not yet built (ordered by which milestone will need them first):
 
@@ -29,19 +36,16 @@ Needed, not yet built (ordered by which milestone will need them first):
 |---|---|---|
 | `Select` | Role pickers, filters | Native-feeling, keyboard-operable |
 | `Checkbox` / `Switch` | Autonomy toggles, settings | Switch specifically for binary on/off states (notifications); Checkbox for multi-select |
-| `Tag` / `Badge` | Status labels (draft/active/paused, role names) | Uses semantic colors (DesignSystem.md §4.3) — never Signal |
-| `Tooltip` | Icon-only button labels, truncated text | Level-2 elevation (DesignSystem.md §7) |
 | `Popover` | Filters, quick actions | Level-2 elevation |
-| `Dialog` / `Sheet` | Confirmations, focused forms | Level-3 elevation; Sheet (slide-in panel) preferred over Dialog for anything that isn't a yes/no confirmation |
+| `Sheet` | Focused forms that aren't a yes/no confirmation | Slide-in panel; `Dialog` (built) already covers the confirmation case |
 | `Table` | Task boards, usage records, member lists | Tabular-nums (DesignSystem.md §5.3) applied by default to any numeric column |
-| `Tabs` | Employee Profile's Overview/Permissions/DNA/Activity/Chat (WireframeSpec §9) | |
-| `Toast` | Success/error confirmation | Already partially covered by `sonner` (existing dependency) — wrap, don't replace |
-| `CommandPalette` | Global navigation and actions (⌘K) | See §4 — this is not a "nice to have," it's a first-class navigation surface |
-| `Skeleton` | Loading states matching real content shape | See UXPrinciples.md §2 |
+| `CommandPalette` | Global navigation and actions (⌘K) | See §4 — this is not a "nice to have," it's a first-class navigation surface; build once the icon rail has a second real item |
 
 ## 3. Signature molecules
 
 Each entry: what it is, what makes it Velora's own rather than a generic pattern, and which real screen uses it first. The Org Pulse is listed first, deliberately out of alphabetical/introduction order — it is the system's center of gravity, not one entry among equals.
+
+**Build status (Stage 0 extension, `docs/design/Stage0-Migration.md` §11.4):** all six exist today as typed, presentation-only components in `frontend/components/molecules/`, demonstrated on an internal design-preview page with mock data — none is wired to a real backend, since none of the underlying systems (Digital Employees, Goals, Approvals, Departments, Company DNA) exist in M4 yet. Wiring real data into each is Stage 2 work, not a redesign — the "first used on" note per entry below is that Stage 2 milestone.
 
 ### The Meridian Line & the Org Pulse (the living organization, in two sizes)
 

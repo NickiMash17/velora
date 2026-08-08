@@ -43,20 +43,39 @@ behavior change. Full detail: [Stage0-Migration.md](./Stage0-Migration.md).
   Playwright smoke test against a running production build and the real
   backend, screenshots captured in both themes.
 
+**Extension (post-implementation, `Stage0-Migration.md` §11):** a follow-up
+brief asked for the remaining scope pulled forward too — `Avatar`,
+`DropdownMenu`, `Dialog`, `Tabs`, `Separator`, `EmptyState`, `Toast` (all
+built; `Dialog`/`Tabs`/`EmptyState`/`Toast` demonstrated on an internal
+design-preview page, no real consumer yet), the layout primitives (`Stack`/
+`Cluster`/`Grid`/`Section`/`ContentContainer`/`SplitPanel`/`PageHeader`),
+elevation/scrim/layout-dimension tokens, and — overriding Stage 2 below —
+all six signature molecules, built now as **presentation-only** components
+with typed props and no real data source, demonstrated the same way. Real
+data wiring for the molecules is still Stage 2 work; only their existence
+as reusable components moved earlier. `Select`/`Checkbox`/`Switch`/`Table`/
+`CommandPalette` remain deferred (Stage 1, below).
+
 ### Stage 1 — Primitives (remaining)
 
-- The primitives Stage 0 built are audited and correct against the new
-  tokens (they're the same components, just reskinned). What remains: the
-  primitives Stage 0 explicitly deferred (`Select`/`Checkbox`/`Switch`/
-  `Dialog`/`Sheet`/`Table`/`Tabs`/`CommandPalette`, `Toast` wiring),
-  prioritized by which upcoming milestone needs them first (`Select`/`Tag`/
+- What remains: `Select`/`Checkbox`/`Switch`/`Table`/`CommandPalette`,
+  prioritized by which upcoming milestone needs them first (`Select`/
   `Switch` before Company DNA or Departments work; `CommandPalette` before
   any milestone adds a third top-level destination beyond Dashboard/
   Onboarding — the icon rail today has exactly one item).
 
-### Stage 2 — Signature molecules
+### Stage 2 — Signature molecules: real data
 
-- Digital Employee Card, Goal Progress Ring, Approval Queue Item, Autonomy Dial, Decision Trace Timeline, the full Org Pulse (ComponentGuidelines.md §3) — each built once its first real consumer milestone exists, not speculatively ahead of it. Building the full Org Pulse before there's a single real Digital Employee to render in it produces a component tuned against fake data, which is exactly the "fabricated" problem this whole design effort is trying to avoid downstream. (`LiveDot` and the Meridian Line's compact form already shipped in Stage 0, since the Meridian Line itself needed them.)
+- The six molecules themselves were built early (Stage 0's extension, as
+  presentation-only components — see above). What's left is real data: each
+  gets wired to its actual backend once that backend exists — Digital
+  Employee Card to the roster, Autonomy Dial to the permission system, Goal
+  Progress Ring to Goals, Approval Queue Item to the approval system,
+  Decision Trace Timeline to Task history, and the full canvas-based Org
+  Pulse (with animated task edges, per the `meridian.html` artifact) once
+  real Digital Employees and Departments exist to animate — the DOM/SVG
+  `OrgPulse` built in Stage 0 is a foundation, not that final version. No
+  redesign needed for any of them; same typed props, real values.
 
 ### Stage 3 — Screens
 

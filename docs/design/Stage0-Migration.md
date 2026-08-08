@@ -169,8 +169,152 @@ Real captures from the flow above, `docs/design/screenshots/`:
   DNA settings doesn't exist as a destination yet. Wire the click-through
   when it does.
 
-## 10. Next step
+## 11. Extension — molecules, remaining primitives, layout, verification
 
-Per the user's own instruction, Stage 0 stops here for review. No Stage 1
-(primitive audit + the deferred primitives above) begins without explicit
-approval.
+A follow-up brief asked for a broader Stage 0 than §1–§10 above covered:
+the six signature molecules (as presentation-only components), several more
+primitives (Avatar, Dropdown/Menu, Dialog, Tabs, Separator, EmptyState,
+Toast), layout primitives, layout-dimension/elevation tokens, a mobile
+screenshot, and demo artifacts in `docs/demo/`. This section documents that
+extension — still Stage 0, no new business functionality, same branch.
+
+### 11.1 New tokens
+
+`--shadow-meridian-raised`/`-overlay` (Level 2/3 elevation, `DesignSystem.md`
+§7 — dark mode uses black at higher opacity rather than an Ink-tinted
+shadow, since Ink is already the dark-mode ground and would be invisible
+against itself; not specified in the design doc, documented here as the
+judgment call), a `--scrim` token for `Dialog`'s backdrop (same light/dark
+reasoning), and layout-dimension custom properties (`--rail-width`,
+`--shell-header-height`, `--meridian-line-height`) — the shell components'
+previously-hardcoded `w-16`/`h-14`/`h-10` now reference these so a future
+screen can share the exact constants.
+
+### 11.2 New primitives and layout primitives
+
+| File | Purpose | Real consumer now, or demonstrated only |
+|---|---|---|
+| `components/ui/avatar.tsx` | Ink/Signal monogram, no illustrated character | `AccountMenu` (real) |
+| `components/ui/dropdown-menu.tsx` | `@base-ui/react` menu wrapper | `AccountMenu` (real) |
+| `components/ui/separator.tsx` | Plain rule | `AccountMenu`, `SplitPanel` (real) |
+| `components/ui/dialog.tsx` | Level-3 elevation, scrim backdrop | design-preview only — no destructive-confirm flow exists yet |
+| `components/ui/tabs.tsx` | Cross-fade, no slide | design-preview only — Employee Profile's tabs don't exist yet |
+| `components/ui/empty-state.tsx` | Generic empty-state fallback | design-preview only |
+| `components/ui/toast.tsx` | Typed helper over the already-mounted `sonner` Toaster | design-preview only — see 11.4 |
+| `components/layout/stack.tsx`, `cluster.tsx`, `grid.tsx`, `section.tsx`, `content-container.tsx` | Thin flex/grid wrappers | `DashboardShell`, design-preview (real) |
+| `components/layout/split-panel.tsx` | Dominant pane + docked pane + `Separator` | design-preview only — the shape a future Workforce Command Center composes from, not built as a named "CommandCenter" component since there's no real content to lay out yet |
+| `components/layout/page-header.tsx` | In-content title/description/actions row | design-preview only |
+
+"PageShell" from the brief is already covered by the existing `AppShell`
+(authenticated) + `CenteredScreen` (focused) — no third, overlapping shell
+primitive was added.
+
+### 11.3 AccountMenu — sign-out relocated, not re-implemented
+
+`components/shell/account-menu.tsx` (Avatar + DropdownMenu + Separator) is
+now in the shell header. `DashboardShell` no longer renders its own
+"Signed in as…" line and sign-out button in the org card — that action
+moved into the header's account menu. The mutation (`useLogoutMutation`)
+and its result (clear session, redirect to `/login`) are byte-for-byte
+unchanged; only the UI trigger's location moved, confirmed by an end-to-end
+Playwright run (register → onboarding → create org → dashboard → open the
+real account menu → sign out → lands on `/login`). The org card gained two
+previously-unused-but-real fields instead (`organization.slug`,
+`organization.created_at`) rather than being left empty.
+
+### 11.4 Signature molecules — presentation-only
+
+`components/molecules/`: `digital-employee-card.tsx`, `autonomy-dial.tsx`,
+`goal-progress-ring.tsx`, `approval-queue-item.tsx`,
+`decision-trace-timeline.tsx`, `org-pulse.tsx`. All typed, all take plain
+props, none fetch or fabricate data internally. `OrgPulse` is a DOM/SVG
+foundation (departments and employees as nodes, reusing `LiveDot`), not the
+full canvas-based version with animated task edges from the approved
+`meridian.html` artifact — that one is genuinely Stage 2 work, once real
+Digital Employees and Departments exist to animate. None of the six is
+wired into any real M4 screen — no Digital Employee/Goals/Approval/
+Department backend exists to back them. They're demonstrated on the new
+`app/design-preview/page.tsx` with data clearly labeled as mock, so a
+future milestone plugs real data into the same props without redesigning
+anything.
+
+`components/ui/toast.tsx` is built and themed but not forced into the
+login/register/logout flows — those redirect immediately, and a toast the
+user navigates past before reading isn't a genuine improvement. It's
+demonstrated on the preview page; its first real consumer is whichever
+future action doesn't immediately redirect.
+
+### 11.5 The internal design-preview page
+
+`app/design-preview/page.tsx` — not linked from the icon rail or anywhere
+in the product, labeled in its own copy as internal design-review tooling.
+This is a stand-in for a proper Storybook setup, tracked as technical debt
+(§12), not a permanent fixture. It's also where every new primitive and
+molecule got its first real render, which is how the bug in 11.6 was found.
+
+### 11.6 A real bug found and fixed
+
+`DropdownMenuLabel` originally wrapped Base UI's `Menu.GroupLabel`, which
+throws (`MenuGroupContext is missing`) unless used inside `Menu.Group` —
+not the case here, since this is a plain caption, not an actual group.
+Opening any dropdown menu crashed the page. Found via the design-preview
+page during manual verification (dev-mode error), before it could have
+shipped in the real `AccountMenu`. Fixed by rendering a plain styled `<div>`
+instead of the Base UI part — confirmed via a re-run of the same Playwright
+click-through with no crash, then verified via the full register → sign-out
+flow above.
+
+### 11.7 Mobile responsiveness — a real fix, not just a token
+
+The first mobile screenshot showed the 64px icon rail still reserved on a
+390px viewport — exactly the "shrink the desktop layout" anti-pattern
+`Accessibility.md` §3 warns against, not a deliberate adaptation. Fixed by
+hiding the rail below the `sm` breakpoint (640px, matching that section's
+own breakpoint table) — on a phone, a single-item rail addressed via URL
+isn't essential chrome, and reclaiming its width matters more. Tablet keeps
+the icon-only rail unchanged.
+
+### 11.8 Accessibility spot-check
+
+Playwright's `ariaSnapshot()` against the Dashboard, design-preview page,
+and Login, plus a keyboard-only tab walk through the Dashboard header:
+every icon-only control resolved a real accessible name (`Account menu`,
+`Toggle theme`, `Options`, tab/radio labels, `LiveDot`'s `idle`/`actively
+working`/`idle, Company DNA behind current`), focus order was logical
+(rail link → account menu → theme toggle), and no unlabeled interactive
+element was found. Not a substitute for a full automated audit (no
+axe-core or similar was installed) — see §12.
+
+### 11.9 Demo artifacts
+
+`docs/demo/Stage0/` (the location this brief asked for, distinct from
+`docs/design/screenshots/` used in §8 — both are kept, cross-referenced
+here): root/session-entry screen (honestly labeled — no marketing landing
+page exists), login and register in both themes, onboarding, dashboard in
+both themes, a Meridian Line/shell close-up crop, a real mobile-viewport
+capture (register + dashboard at 390×844), and the design-preview page.
+Plus `stage0-demo.gif` — a real Playwright recording (register → onboarding
+→ dashboard → theme toggle → account menu), converted with ffmpeg, no
+fabricated content.
+
+## 12. Known limitations and technical debt (this extension)
+
+- The design-preview page is a stand-in for a proper component-development
+  environment (Storybook or similar) — fine for Stage 0, but it will grow
+  unwieldy as more molecules/primitives are added; worth replacing before
+  Stage 2 adds real molecule consumers.
+- No automated accessibility audit tool (axe-core or similar) is installed;
+  §11.8's spot-check is manual and Playwright-driven, not exhaustive.
+- `OrgPulse` has no animated task edges yet (DOM/SVG, not canvas) — the
+  fuller version already prototyped in `meridian.html` is Stage 2 work.
+- `SplitPanel`'s vertical `Separator` relies on flex `align-items: stretch`
+  giving it height from its siblings — reasonable in practice, not
+  pixel-verified beyond the design-preview page since it has no real page
+  consumer yet.
+
+## 13. Next step
+
+Per the user's own instruction, Stage 0 (including this extension) stops
+here for review. No Stage 1 (the primitives still deferred — `Select`,
+`Checkbox`/`Switch`, `Table`, `CommandPalette` — or real-data wiring for the
+molecules built in §11) begins without explicit approval.
