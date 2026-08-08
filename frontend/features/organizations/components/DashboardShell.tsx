@@ -2,9 +2,12 @@
 
 import { useRouter } from "next/navigation";
 
+import { AppShell } from "@/components/shell/app-shell";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { FormError } from "@/components/ui/form-error";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUserQuery } from "@/features/auth/api/use-current-user";
 import { useLogoutMutation } from "@/features/auth/api/use-logout";
 import { useSessionStore } from "@/features/auth/store/session-store";
@@ -16,6 +19,10 @@ import { useCurrentOrganizationQuery } from "../api/use-current-organization";
  * Dashboard: that spec assumes Digital Employees/Goals exist, which this
  * milestone does not build. No hire-CTA, no fake widgets — those would
  * point at features that don't exist yet.
+ *
+ * The Meridian Line renders here with no data (its real, honest dormant
+ * state — components/shell/meridian-line.tsx) since this organization has
+ * zero Digital Employees and no Company DNA feature exists yet.
  */
 export function DashboardShell() {
   const router = useRouter();
@@ -30,41 +37,48 @@ export function DashboardShell() {
   }
 
   if (organizationQuery.isPending || userQuery.isPending) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return (
+      <AppShell title="Dashboard">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="mt-1.5 h-4 w-28" />
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <Skeleton className="h-4 w-52" />
+            <Skeleton className="h-8 w-24" />
+          </CardContent>
+        </Card>
+      </AppShell>
+    );
   }
 
   if (organizationQuery.isError || !organizationQuery.data) {
     return (
-      <p role="alert" className="text-sm text-destructive">
-        Couldn&apos;t load your organization.
-      </p>
+      <AppShell title="Dashboard">
+        <FormError>Couldn&apos;t load your organization.</FormError>
+      </AppShell>
     );
   }
 
   const { organization, role } = organizationQuery.data;
 
   return (
-    <div className="flex w-full max-w-md flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Velora</h1>
-        <ThemeToggle />
-      </div>
-      <Card>
+    <AppShell title="Dashboard" headerRight={<Badge>{role.replace(/_/g, " ")}</Badge>}>
+      <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>{organization.name}</CardTitle>
           <CardDescription>
-            {organization.plan_tier} plan · {organization.status}
+            {organization.plan_tier} plan &middot; {organization.status}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <p className="text-sm text-muted-foreground">
-            Signed in as {userQuery.data?.email} · {role}
-          </p>
+          <p className="text-small text-muted-foreground">Signed in as {userQuery.data?.email}</p>
           <Button variant="outline" onClick={handleLogout} disabled={logoutMutation.isPending}>
             Sign out
           </Button>
         </CardContent>
       </Card>
-    </div>
+    </AppShell>
   );
 }

@@ -1,3 +1,4 @@
+import { CenteredScreen } from "@/components/layout/centered-screen";
 import { SessionResolver } from "@/features/organizations/components/SessionResolver";
 
 /**
@@ -10,9 +11,8 @@ import { SessionResolver } from "@/features/organizations/components/SessionReso
  */
 export default function RootPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Velora</h1>
+    <CenteredScreen>
       <SessionResolver />
-    </main>
+    </CenteredScreen>
   );
 }

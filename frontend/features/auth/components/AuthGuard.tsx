@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+import { LoadingState } from "@/components/ui/loading-state";
 import { useEnsureSession } from "../api/use-ensure-session";
 
 /** Wraps any protected page's content — see use-ensure-session's
@@ -18,7 +19,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [status, router]);
 
   if (status !== "authenticated") {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingState />
+      </div>
+    );
   }
 
   return <>{children}</>;

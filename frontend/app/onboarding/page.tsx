@@ -1,11 +1,11 @@
 import { AuthGuard } from "@/features/auth/components/AuthGuard";
+import { CenteredScreen } from "@/components/layout/centered-screen";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateOrganizationForm } from "@/features/organizations/components/CreateOrganizationForm";
 
 export default function OnboardingPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Velora</h1>
+    <CenteredScreen>
       <AuthGuard>
         <Card className="w-full max-w-sm">
           <CardHeader>
@@ -19,6 +19,6 @@ export default function OnboardingPage() {
           </CardContent>
         </Card>
       </AuthGuard>
-    </main>
+    </CenteredScreen>
   );
 }

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { useEnsureSession } from "@/features/auth/api/use-ensure-session";
 import { useSessionStore } from "@/features/auth/store/session-store";
+import { FormError } from "@/components/ui/form-error";
+import { LoadingState } from "@/components/ui/loading-state";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { listMyOrganizations, selectOrganization } from "../api/organizations-client";
 import type { OrganizationMembership } from "../api/organizations-client";
@@ -74,16 +76,12 @@ export function SessionResolver() {
   }, [status, accessToken, router, setAccessToken]);
 
   if (error) {
-    return (
-      <p role="alert" className="text-sm text-destructive">
-        {error}
-      </p>
-    );
+    return <FormError>{error}</FormError>;
   }
 
   if (choices) {
     return <OrganizationChoiceList memberships={choices} />;
   }
 
-  return <p className="text-sm text-muted-foreground">Loading…</p>;
+  return <LoadingState />;
 }
