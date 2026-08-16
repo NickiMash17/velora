@@ -69,7 +69,7 @@ Recap from [ADR 0001](./decisions/0001-event-store-implementation.md): every eve
 |---|---|---|---|---|---|
 | ✅ Implemented | `OrganizationCreated` | Organization Service | Billing, Audit Log, Analytics | `organization_id`, `plan_tier`, `region` | New tenant provisioned |
 | 📋 Planned | `OrganizationPlanChanged` | Billing | Organization Service, Analytics | `organization_id`, `old_tier`, `new_tier` | Entitlements/quota recalculation trigger |
-| 📋 Planned | `DepartmentCreated` | Department Service | Audit Log, Analytics | `department_id`, `organization_id`, `function_type` | New department |
+| ✅ Implemented | `DepartmentCreated` | Department Service | Audit Log, Analytics | `department_id`, `organization_id`, `function_type` | New department |
 | 📋 Planned | `UserInvited` | Membership Service | Notification Service, Audit Log | `user_id`, `organization_id`, `role` | Invitation sent |
 | ✅ Implemented | `MembershipActivated` | Membership Service | Billing (seat count), Audit Log | `organization_id`, `user_id`, `role` | User accepted invite |
 

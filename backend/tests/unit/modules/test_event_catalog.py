@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.modules.events.domain.catalog import (
+    DEPARTMENT_CREATED,
     MEMBERSHIP_ACTIVATED,
     ORGANIZATION_CREATED,
     topic_for,
@@ -17,6 +18,10 @@ def test_organization_created_maps_to_documented_topic() -> None:
 
 def test_membership_activated_maps_to_documented_topic() -> None:
     assert topic_for(MEMBERSHIP_ACTIVATED) == "membership.activated"
+
+
+def test_department_created_maps_to_documented_topic() -> None:
+    assert topic_for(DEPARTMENT_CREATED) == "department.created"
 
 
 def test_uncataloged_event_type_raises() -> None:

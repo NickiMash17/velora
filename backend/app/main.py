@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from app.modules.departments.api.router import router as departments_router
 from app.modules.identity.api.router import router as identity_router
 from app.modules.organizations.api.router import router as organizations_router
 from app.shared.cache import create_redis_client
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(identity_router, prefix="/v1")
     app.include_router(organizations_router, prefix="/v1")
+    app.include_router(departments_router, prefix="/v1")
 
     return app
 
