@@ -88,7 +88,12 @@ Recap from [ADR 0001](./decisions/0001-event-store-implementation.md): every eve
 
 ### 5.3 Company DNA
 
-**Implementation status:** 📋 Planned — no Company DNA module exists yet; none of the events below has an emitter in code.
+**Implementation status:** ✅ Implemented — `backend/app/modules/company_dna`
+(M5 Checkpoint 2). All three events below have a real emitter, registered
+in `catalog.py`. DNA compilation is manual-entry only in M5 — `compiled_summary`
+is authored directly by an admin, not produced by a compiler pipeline;
+`CompanyDnaCompiled` here is the manual substitute for that (out-of-scope)
+pipeline finishing, per the locked M5 decision.
 
 | Type | Producer | Consumers | Payload (key fields) | Purpose |
 |---|---|---|---|---|
