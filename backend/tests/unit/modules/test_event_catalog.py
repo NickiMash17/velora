@@ -14,6 +14,8 @@ from app.modules.events.domain.catalog import (
     EMPLOYEE_HIRED,
     EMPLOYEE_PAUSED,
     EMPLOYEE_RETIRED,
+    GOAL_ACTIVATED,
+    GOAL_PROPOSED,
     MEMBERSHIP_ACTIVATED,
     ORGANIZATION_CREATED,
     topic_for,
@@ -62,6 +64,14 @@ def test_employee_paused_maps_to_documented_topic() -> None:
 
 def test_employee_retired_maps_to_documented_topic() -> None:
     assert topic_for(EMPLOYEE_RETIRED) == "employee.retired"
+
+
+def test_goal_proposed_maps_to_documented_topic() -> None:
+    assert topic_for(GOAL_PROPOSED) == "goal.proposed"
+
+
+def test_goal_activated_maps_to_documented_topic() -> None:
+    assert topic_for(GOAL_ACTIVATED) == "goal.activated"
 
 
 def test_uncataloged_event_type_raises() -> None:
