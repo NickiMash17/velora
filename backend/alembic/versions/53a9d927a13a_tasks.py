@@ -70,7 +70,12 @@ def upgrade() -> None:
             sa.ForeignKey("organizations.id"),
             nullable=False,
         ),
-        sa.Column("goal_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("goals.id"), nullable=True),
+        sa.Column(
+            "goal_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("goals.id"),
+            nullable=True,
+        ),
         sa.Column(
             "assigned_ai_employee_id",
             postgresql.UUID(as_uuid=True),
@@ -78,7 +83,10 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column(
-            "assigned_user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True
+            "assigned_user_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("users.id"),
+            nullable=True,
         ),
         sa.Column("status", task_status, nullable=False),
         sa.Column("blocked_reason", task_blocked_reason, nullable=True),
