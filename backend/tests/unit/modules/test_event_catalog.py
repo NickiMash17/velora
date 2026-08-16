@@ -9,6 +9,11 @@ from app.modules.events.domain.catalog import (
     COMPANY_DNA_DRAFT_CREATED,
     COMPANY_DNA_PUBLISHED,
     DEPARTMENT_CREATED,
+    EMPLOYEE_ACTIVATED,
+    EMPLOYEE_CONFIGURED,
+    EMPLOYEE_HIRED,
+    EMPLOYEE_PAUSED,
+    EMPLOYEE_RETIRED,
     MEMBERSHIP_ACTIVATED,
     ORGANIZATION_CREATED,
     topic_for,
@@ -37,6 +42,26 @@ def test_company_dna_compiled_maps_to_documented_topic() -> None:
 
 def test_company_dna_published_maps_to_documented_topic() -> None:
     assert topic_for(COMPANY_DNA_PUBLISHED) == "company_dna.published"
+
+
+def test_employee_hired_maps_to_documented_topic() -> None:
+    assert topic_for(EMPLOYEE_HIRED) == "employee.hired"
+
+
+def test_employee_configured_maps_to_documented_topic() -> None:
+    assert topic_for(EMPLOYEE_CONFIGURED) == "employee.configured"
+
+
+def test_employee_activated_maps_to_documented_topic() -> None:
+    assert topic_for(EMPLOYEE_ACTIVATED) == "employee.activated"
+
+
+def test_employee_paused_maps_to_documented_topic() -> None:
+    assert topic_for(EMPLOYEE_PAUSED) == "employee.paused"
+
+
+def test_employee_retired_maps_to_documented_topic() -> None:
+    assert topic_for(EMPLOYEE_RETIRED) == "employee.retired"
 
 
 def test_uncataloged_event_type_raises() -> None:
