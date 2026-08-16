@@ -18,6 +18,7 @@ from app.modules.events.domain.catalog import (
     GOAL_PROPOSED,
     MEMBERSHIP_ACTIVATED,
     ORGANIZATION_CREATED,
+    TASK_ASSIGNED,
     topic_for,
 )
 
@@ -72,6 +73,10 @@ def test_goal_proposed_maps_to_documented_topic() -> None:
 
 def test_goal_activated_maps_to_documented_topic() -> None:
     assert topic_for(GOAL_ACTIVATED) == "goal.activated"
+
+
+def test_task_assigned_maps_to_documented_topic() -> None:
+    assert topic_for(TASK_ASSIGNED) == "task.assigned"
 
 
 def test_uncataloged_event_type_raises() -> None:
