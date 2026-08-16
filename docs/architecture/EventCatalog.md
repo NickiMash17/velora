@@ -63,7 +63,7 @@ Recap from [ADR 0001](./decisions/0001-event-store-implementation.md): every eve
 
 ### 5.1 Identity & Organization
 
-**Implementation status:** mixed — the only section where it is; see per-row markers.
+**Implementation status:** mixed — see per-row markers (§5.2 is also mixed, as of M5 Checkpoint 3).
 
 | Status | Type | Producer | Consumers | Payload (key fields) | Purpose |
 |---|---|---|---|---|---|
@@ -75,16 +75,21 @@ Recap from [ADR 0001](./decisions/0001-event-store-implementation.md): every eve
 
 ### 5.2 AI Workforce
 
-**Implementation status:** 📋 Planned — no `ai_employees` module exists yet; none of the events below has an emitter in code.
+**Implementation status:** mixed — `backend/app/modules/ai_employees` (M5
+Checkpoint 3) gives the five lifecycle events real emitters; see per-row
+markers. `EmployeeCompletedTask` remains 📋 Planned — it belongs to Agent
+Collaboration/Skill Runtime (task claiming and execution), which is out
+of M5's scope entirely (deferred pending machine identity — see the M5
+Step 3 implementation plan).
 
-| Type | Producer | Consumers | Payload (key fields) | Purpose |
-|---|---|---|---|---|
-| `EmployeeHired` | Provisioning Service | Billing (seat metering), Audit Log, Goal Engine | `ai_employee_id`, `department_id`, `template_id` | Digital Employee created in `draft` |
-| `EmployeeConfigured` | Provisioning Service | Audit Log | `ai_employee_id`, `company_dna_version_id`, `permission_scope` | DNA + permissions bound; eligible for activation |
-| `EmployeeActivated` | Provisioning Service | Billing, Task Board, Audit Log | `ai_employee_id` | Now eligible to claim tasks |
-| `EmployeePaused` | Provisioning Service / Policy Engine (auto-pause) | Task Board (reassign in-flight tasks), Notification Service, Audit Log | `ai_employee_id`, `reason` | Manual pause or automatic (policy violation, budget exhaustion) |
-| `EmployeeRetired` | Provisioning Service | Task Board (reassign), Billing, Audit Log | `ai_employee_id` | Archived; memory retained |
-| `EmployeeCompletedTask` | Agent Collaboration | Goal Engine, Memory Indexing, Analytics, Audit Log | `ai_employee_id`, `task_id`, `outcome` | Feeds performance record ([AIEmployees.md §9](./AIEmployees.md#9-performance-record)) |
+| Status | Type | Producer | Consumers | Payload (key fields) | Purpose |
+|---|---|---|---|---|---|
+| ✅ Implemented | `EmployeeHired` | Provisioning Service | Billing (seat metering), Audit Log, Goal Engine | `ai_employee_id`, `department_id`, `template_id` | Digital Employee created in `draft` |
+| ✅ Implemented | `EmployeeConfigured` | Provisioning Service | Audit Log | `ai_employee_id`, `company_dna_version_id`, `permission_scope` | DNA + permissions bound; eligible for activation |
+| ✅ Implemented | `EmployeeActivated` | Provisioning Service | Billing, Task Board, Audit Log | `ai_employee_id` | Now eligible to claim tasks |
+| ✅ Implemented | `EmployeePaused` | Provisioning Service / Policy Engine (auto-pause) | Task Board (reassign in-flight tasks), Notification Service, Audit Log | `ai_employee_id`, `reason` | Manual pause or automatic (policy violation, budget exhaustion) — M5 only ever emits `reason="manual"`, no Policy Engine exists |
+| ✅ Implemented | `EmployeeRetired` | Provisioning Service | Task Board (reassign), Billing, Audit Log | `ai_employee_id` | Archived; memory retained |
+| 📋 Planned | `EmployeeCompletedTask` | Agent Collaboration | Goal Engine, Memory Indexing, Analytics, Audit Log | `ai_employee_id`, `task_id`, `outcome` | Feeds performance record ([AIEmployees.md §9](./AIEmployees.md#9-performance-record)) |
 
 ### 5.3 Company DNA
 

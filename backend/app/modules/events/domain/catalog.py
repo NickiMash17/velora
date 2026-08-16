@@ -20,6 +20,11 @@ DEPARTMENT_CREATED = "DepartmentCreated"
 COMPANY_DNA_DRAFT_CREATED = "CompanyDnaDraftCreated"
 COMPANY_DNA_COMPILED = "CompanyDnaCompiled"
 COMPANY_DNA_PUBLISHED = "CompanyDnaPublished"
+EMPLOYEE_HIRED = "EmployeeHired"
+EMPLOYEE_CONFIGURED = "EmployeeConfigured"
+EMPLOYEE_ACTIVATED = "EmployeeActivated"
+EMPLOYEE_PAUSED = "EmployeePaused"
+EMPLOYEE_RETIRED = "EmployeeRetired"
 
 _TOPICS: dict[str, str] = {
     ORGANIZATION_CREATED: "organization.created",
@@ -28,6 +33,11 @@ _TOPICS: dict[str, str] = {
     COMPANY_DNA_DRAFT_CREATED: "company_dna.draft_created",
     COMPANY_DNA_COMPILED: "company_dna.compiled",
     COMPANY_DNA_PUBLISHED: "company_dna.published",
+    EMPLOYEE_HIRED: "employee.hired",
+    EMPLOYEE_CONFIGURED: "employee.configured",
+    EMPLOYEE_ACTIVATED: "employee.activated",
+    EMPLOYEE_PAUSED: "employee.paused",
+    EMPLOYEE_RETIRED: "employee.retired",
 }
 
 

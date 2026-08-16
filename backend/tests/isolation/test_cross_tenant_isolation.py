@@ -21,6 +21,14 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.ai_employees.application.services import hire_ai_employee
+from app.modules.ai_employees.domain.entities import AiEmployeeTemplate, Skill
+from app.modules.ai_employees.infrastructure.orm import AiEmployeeORM, AiEmployeeSkillORM
+from app.modules.ai_employees.infrastructure.repository import (
+    AiEmployeeSkillRepository,
+    AiEmployeeTemplateRepository,
+    SkillRepository,
+)
 from app.modules.company_dna.application.services import create_draft_version
 from app.modules.company_dna.infrastructure.orm import CompanyDnaVersionORM
 from app.modules.departments.application.services import create_department
@@ -112,7 +120,7 @@ async def test_tenant_tables_have_rls_enabled_and_forced(db_session: AsyncSessio
             "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class "
             "WHERE relname IN "
             "('organizations', 'organization_memberships', 'events', 'departments', "
-            "'company_dna_versions')"
+            "'company_dna_versions', 'ai_employees', 'ai_employee_skills')"
         )
     )
     rows = {row.relname: row for row in result.all()}
@@ -123,6 +131,8 @@ async def test_tenant_tables_have_rls_enabled_and_forced(db_session: AsyncSessio
         "events",
         "departments",
         "company_dna_versions",
+        "ai_employees",
+        "ai_employee_skills",
     }
     for table_name, row in rows.items():
         assert row.relrowsecurity is True, f"{table_name} does not have RLS enabled"
@@ -355,6 +365,313 @@ async def test_tenant_a_cannot_insert_company_dna_version_into_tenant_b(
                 ),
                 {"id": str(uuid.uuid4()), "org_id": str(two_tenants.org_b_id)},
             )
+
+
+# ---------------------------------------------------------------------
+# 3.7. AI Employees data (M5 Checkpoint 3)
+# ---------------------------------------------------------------------
+
+
+async def _create_department_and_template(
+    db_session: AsyncSession, organization_id: uuid.UUID
+) -> tuple[uuid.UUID, uuid.UUID]:
+    department = await create_department(
+        db_session,
+        organization_id=organization_id,
+        name="Support",
+        function_type=FunctionType.SUPPORT,
+    )
+    template = await AiEmployeeTemplateRepository().create(
+        db_session,
+        AiEmployeeTemplate(
+            id=uuid.uuid4(),
+            name="Support Agent",
+            default_skills=["send_email"],
+            system_prompt_scaffold="You are a helpful support agent.",
+        ),
+    )
+    # Global-catalog create() has no transaction wrapper of its own (no
+    # organization_id to scope), so it leaves an autobegin transaction
+    # open on the session — commit explicitly, same as _create_user()
+    # above, so the next tenant_scoped_transaction's session.begin()
+    # doesn't hit "A transaction is already begun on this Session."
+    await db_session.commit()
+    return department.id, template.id
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_read_tenant_bs_ai_employees(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    department_a, template_a = await _create_department_and_template(
+        db_session, two_tenants.org_a_id
+    )
+    department_b, template_b = await _create_department_and_template(
+        db_session, two_tenants.org_b_id
+    )
+    await hire_ai_employee(
+        db_session,
+        organization_id=two_tenants.org_a_id,
+        department_id=department_a,
+        template_id=template_a,
+        name="Tenant A Employee",
+        role_title="Agent",
+    )
+    await hire_ai_employee(
+        db_session,
+        organization_id=two_tenants.org_b_id,
+        department_id=department_b,
+        template_id=template_b,
+        name="Tenant B Employee",
+        role_title="Agent",
+    )
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        # No organization_id filter at all — proves RLS, not our WHERE clause.
+        result = await db_session.execute(select(AiEmployeeORM))
+        visible_org_ids = {row.organization_id for row in result.scalars().all()}
+
+    assert visible_org_ids == {two_tenants.org_a_id}
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_update_tenant_bs_ai_employee_row(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    department_b, template_b = await _create_department_and_template(
+        db_session, two_tenants.org_b_id
+    )
+    employee = await hire_ai_employee(
+        db_session,
+        organization_id=two_tenants.org_b_id,
+        department_id=department_b,
+        template_id=template_b,
+        name="Tenant B Employee",
+        role_title="Agent",
+    )
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        result = await db_session.execute(
+            text("UPDATE ai_employees SET name = 'hijacked' WHERE id = :id"),
+            {"id": str(employee.id)},
+        )
+    # RLS silently filters the row out of the UPDATE's target set — zero
+    # rows affected, not an error, and Tenant B's row is untouched.
+    assert result.rowcount == 0
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_insert_ai_employee_into_tenant_b(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    department_a, template_a = await _create_department_and_template(
+        db_session, two_tenants.org_a_id
+    )
+
+    with pytest.raises(DBAPIError):
+        async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+            await db_session.execute(
+                text(
+                    "INSERT INTO ai_employees "
+                    "(id, organization_id, department_id, template_id, name, "
+                    "role_title, status, autonomy_defaults) "
+                    "VALUES (:id, :org_id, :dept_id, :template_id, 'rogue', "
+                    "'Agent', 'draft', '{}')"
+                ),
+                {
+                    "id": str(uuid.uuid4()),
+                    "org_id": str(two_tenants.org_b_id),
+                    "dept_id": str(department_a),
+                    "template_id": str(template_a),
+                },
+            )
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_read_tenant_bs_ai_employee_skills(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    department_a, template_a = await _create_department_and_template(
+        db_session, two_tenants.org_a_id
+    )
+    department_b, template_b = await _create_department_and_template(
+        db_session, two_tenants.org_b_id
+    )
+    employee_a = await hire_ai_employee(
+        db_session,
+        organization_id=two_tenants.org_a_id,
+        department_id=department_a,
+        template_id=template_a,
+        name="Tenant A Employee",
+        role_title="Agent",
+    )
+    employee_b = await hire_ai_employee(
+        db_session,
+        organization_id=two_tenants.org_b_id,
+        department_id=department_b,
+        template_id=template_b,
+        name="Tenant B Employee",
+        role_title="Agent",
+    )
+    skill = await SkillRepository().create(
+        db_session,
+        Skill(
+            id=uuid.uuid4(),
+            key=f"send_email_{uuid.uuid4().hex[:8]}",
+            description="Send an email",
+            input_schema={},
+            required_permission_scope={},
+        ),
+    )
+    await db_session.commit()  # global-catalog create() leaves an autobegin transaction open
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        await AiEmployeeSkillRepository().create(
+            db_session,
+            organization_id=two_tenants.org_a_id,
+            ai_employee_id=employee_a.id,
+            skill_id=skill.id,
+        )
+    async with tenant_scoped_transaction(db_session, two_tenants.org_b_id):
+        await AiEmployeeSkillRepository().create(
+            db_session,
+            organization_id=two_tenants.org_b_id,
+            ai_employee_id=employee_b.id,
+            skill_id=skill.id,
+        )
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        # No organization_id filter at all — proves RLS, not our WHERE clause.
+        result = await db_session.execute(select(AiEmployeeSkillORM))
+        visible_org_ids = {row.organization_id for row in result.scalars().all()}
+
+    assert visible_org_ids == {two_tenants.org_a_id}
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_insert_ai_employee_skill_into_tenant_b(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    """Confirms the direct-`organization_id`-column RLS policy (Finding 1)
+    actually rejects a cross-tenant write — not a join-based policy, which
+    this schema deliberately does not use anywhere."""
+    department_a, template_a = await _create_department_and_template(
+        db_session, two_tenants.org_a_id
+    )
+    employee_a = await hire_ai_employee(
+        db_session,
+        organization_id=two_tenants.org_a_id,
+        department_id=department_a,
+        template_id=template_a,
+        name="Tenant A Employee",
+        role_title="Agent",
+    )
+    skill = await SkillRepository().create(
+        db_session,
+        Skill(
+            id=uuid.uuid4(),
+            key=f"send_email_{uuid.uuid4().hex[:8]}",
+            description="Send an email",
+            input_schema={},
+            required_permission_scope={},
+        ),
+    )
+    await db_session.commit()  # global-catalog create() leaves an autobegin transaction open
+
+    with pytest.raises(DBAPIError):
+        async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+            await db_session.execute(
+                text(
+                    "INSERT INTO ai_employee_skills "
+                    "(ai_employee_id, skill_id, organization_id) "
+                    "VALUES (:employee_id, :skill_id, :org_id)"
+                ),
+                {
+                    "employee_id": str(employee_a.id),
+                    "skill_id": str(skill.id),
+                    "org_id": str(two_tenants.org_b_id),
+                },
+            )
+
+
+@pytest.mark.asyncio
+async def test_ai_employee_skills_rls_policy_is_not_join_based(db_session: AsyncSession) -> None:
+    """Explicit structural check, per instruction: inspect the actual
+    policy definition and confirm it references only this table's own
+    `organization_id` column — no join/subquery against `ai_employees`
+    anywhere."""
+    result = await db_session.execute(
+        text(
+            "SELECT pg_get_expr(polqual, polrelid) AS using_expr "
+            "FROM pg_policy WHERE polrelid = 'ai_employee_skills'::regclass "
+            "AND polname = 'tenant_isolation'"
+        )
+    )
+    using_expr = result.scalar_one()
+    assert using_expr is not None
+    assert "ai_employees" not in using_expr
+    assert "organization_id" in using_expr
+
+
+@pytest.mark.asyncio
+async def test_global_catalogs_are_visible_identically_regardless_of_tenant_context(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    """ai_employee_templates and skills have no RLS at all (locked
+    decision A1) — the same rows must be visible under ANY tenant
+    context, or none at all, unlike every tenant-scoped table above."""
+    template = await AiEmployeeTemplateRepository().create(
+        db_session,
+        AiEmployeeTemplate(
+            id=uuid.uuid4(),
+            name="Global Template",
+            default_skills=[],
+            system_prompt_scaffold="scaffold",
+        ),
+    )
+    skill = await SkillRepository().create(
+        db_session,
+        Skill(
+            id=uuid.uuid4(),
+            key=f"global_skill_{uuid.uuid4().hex[:8]}",
+            description="A global skill",
+            input_schema={},
+            required_permission_scope={},
+        ),
+    )
+    await db_session.commit()  # global-catalog create() leaves an autobegin transaction open
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        templates_a = {t.id for t in await AiEmployeeTemplateRepository().list_all(db_session)}
+        skills_a = {s.id for s in await SkillRepository().list_all(db_session)}
+    async with tenant_scoped_transaction(db_session, two_tenants.org_b_id):
+        templates_b = {t.id for t in await AiEmployeeTemplateRepository().list_all(db_session)}
+        skills_b = {s.id for s in await SkillRepository().list_all(db_session)}
+    # No tenant context set at all — still visible, since there's no RLS to fail closed.
+    async with db_session.begin():
+        templates_none = {
+            t.id for t in await AiEmployeeTemplateRepository().list_all(db_session)
+        }
+        skills_none = {s.id for s in await SkillRepository().list_all(db_session)}
+
+    assert template.id in templates_a
+    assert template.id in templates_b
+    assert template.id in templates_none
+    assert skill.id in skills_a
+    assert skill.id in skills_b
+    assert skill.id in skills_none
+
+
+@pytest.mark.asyncio
+async def test_global_catalog_tables_have_no_rls_at_all(db_session: AsyncSession) -> None:
+    result = await db_session.execute(
+        text(
+            "SELECT relname, relrowsecurity FROM pg_class "
+            "WHERE relname IN ('ai_employee_templates', 'skills')"
+        )
+    )
+    rows = {row.relname: row.relrowsecurity for row in result.all()}
+    assert rows == {"ai_employee_templates": False, "skills": False}
 
 
 # ---------------------------------------------------------------------
