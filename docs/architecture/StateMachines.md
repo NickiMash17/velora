@@ -67,6 +67,38 @@ stateDiagram-v2
 
 A **claim** is the mechanism preventing duplicate work: multiple Digital Employees may be eligible for the same Task, but the claim is a single atomic DB operation (`UPDATE ... WHERE status = 'pending'` with the row lock implicit in the `WHERE`), so exactly one claim succeeds regardless of how many Digital Employees attempt it concurrently.
 
+**Known/open issue — the `[*] → Pending` guard ("Must reference a valid
+Department") in M5 (added during the Checkpoint 5 review, pre-existing,
+not introduced by any M5 checkpoint):** this guard cannot be satisfied
+for every Task the domain model itself documents as valid. `Database.md
+§3.5`'s actual `tasks` schema has **no direct `department_id` column** —
+a Task's only structural paths to a department are transitive, through
+`goal_id` (→ `Goal.department_id`, itself nullable — `DomainModel.md
+§2.8`: "org- or department-scoped") or `project_id` (→
+`Project.department_id`, mandatory — `DomainModel.md §2.9`). **Projects
+are excluded from M5 entirely** (locked decision 7), and `DomainModel.md
+§2.10`/`Database.md §3.5` both explicitly document **ad hoc Tasks — no
+`goal_id`, no `project_id` — as a normal, valid occurrence**, not an edge
+case. For such a Task, and for one attached only to an org-scoped Goal,
+there is no department to reference at all; the guard as literally
+written is unsatisfiable by the actual M5 schema, not just unenforced by
+the current implementation.
+
+Given Projects are out of scope, `goal_id → Goal.department_id` is the
+**only non-fabricated department path available in M5** when a Goal is
+present — this is a structural consequence of decision 7, not a
+documented derivation rule (no document states it as one). The M5 Tasks
+implementation (`backend/app/modules/tasks`) accordingly derives
+`TaskAssigned.department_id` from the referenced Goal's `department_id`
+when `goal_id` is provided, and emits `null` otherwise. **This derivation
+is `[INFERENCE]`, not `[DOC]`** — confirmed by a direct review pass
+re-reading this section, `DomainModel.md`, and `Database.md` together —
+and it is not a stable payload contract for future consumers, the same
+status already recorded for `GoalProposed.proposed_plan` in
+[EventCatalog.md §5.6](./EventCatalog.md#56-goals-projects--tasks). No
+schema change, no new Task transition, and no API change follow from this
+note — it documents an existing gap, it does not resolve one.
+
 ## 4. Goal Lifecycle
 
 ```mermaid
