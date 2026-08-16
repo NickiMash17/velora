@@ -76,6 +76,14 @@ Compilation is triggered by an ingestion event and runs asynchronously; it is it
 
 The compiled summary for an org's currently-published DNA version is cached at the edge of the AI Runtime layer (Redis, keyed `dna:{organization_id}:{version}`), so every Digital Employee invocation retrieves it with near-zero latency overhead rather than hitting Postgres per invocation. Cache invalidation is event-driven: a `company_dna.published` event evicts/repopulates the cache key for that org.
 
+### 4.5 Drift
+
+"Drift" is the term for the gap between a Digital Employee's **pinned** DNA version (§4.3) and the organization's **currently published** version. It is not a defect or an error state — it is the direct, expected consequence of the pinning guarantee: publishing a new version never silently changes a live employee's behavior, so every employee not yet explicitly upgraded is, by definition, drifted the moment a newer version publishes.
+
+Concretely: an employee is drifted whenever `ai_employees.company_dna_version_id` does not equal the organization's current `published` `company_dna_versions` row. Drift has no independent state, table, or event of its own — it is always computed by comparing those two values at read time, never stored.
+
+Surfacing drift is a presentation concern, not a pipeline concern: the Meridian design system ([docs/design/UXPrinciples.md §7](../design/UXPrinciples.md)) shows a drifted employee with a muted status ring on the Org Pulse rather than full Signal color, and every Decision Trace opens by stating which DNA version it operated on — both are read-only presentations of the comparison above, not a separate mechanism. Resolving drift is always the same explicit action already described in §4.3: a human upgrades the employee's pin. There is no automatic drift resolution, consistent with §9's rule against silent DNA changes.
+
 ## 5. Data Model
 
 See [Database.md §3.4](./Database.md#34-company-dna) for the relational shape. Summary of the split:

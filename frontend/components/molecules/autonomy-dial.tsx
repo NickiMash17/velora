@@ -2,10 +2,10 @@
 
 import { cn } from "@/lib/utils";
 
-type AutonomyLevel = "auto" | "notify" | "approve";
+type AutonomyLevel = "autonomous" | "notify" | "approve";
 
 const LEVELS: { value: AutonomyLevel; label: string }[] = [
-  { value: "auto", label: "Auto" },
+  { value: "autonomous", label: "Autonomous" },
   { value: "notify", label: "Notify" },
   { value: "approve", label: "Approve" },
 ];

@@ -107,9 +107,9 @@ The Command Center's dominant view at higher fidelity — the concrete answer to
 │                                                                 │
 │   (tab content — e.g. Permissions & Autonomy:)                │
 │                                                                 │
-│   Send email to customer          [ auto ─●─ notify ─ approve]│
-│   Issue refund ≤ $50               [auto ─ notify ─●─ approve]│
-│   Issue refund > $50               [auto ─ notify ─ approve ─●]│
+│   Send email to customer          [ autonomous ─●─ notify ─ approve]│
+│   Issue refund ≤ $50               [autonomous ─ notify ─●─ approve]│
+│   Issue refund > $50               [autonomous ─ notify ─ approve ─●]│
 │                                                                 │
 │                                        ↑ Autonomy Dial,        │
 │                                          one row per action     │

@@ -280,7 +280,7 @@ export default function DesignPreviewPage() {
               <CardContent className="divide-y divide-border py-2">
                 <AutonomyDial
                   actionLabel="Send email to customer"
-                  value="auto"
+                  value="autonomous"
                   onChange={() => {}}
                   className="py-3"
                 />
