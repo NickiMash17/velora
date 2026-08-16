@@ -21,6 +21,8 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.company_dna.application.services import create_draft_version
+from app.modules.company_dna.infrastructure.orm import CompanyDnaVersionORM
 from app.modules.departments.application.services import create_department
 from app.modules.departments.domain.enums import FunctionType
 from app.modules.departments.infrastructure.orm import DepartmentORM
@@ -109,12 +111,19 @@ async def test_tenant_tables_have_rls_enabled_and_forced(db_session: AsyncSessio
         text(
             "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class "
             "WHERE relname IN "
-            "('organizations', 'organization_memberships', 'events', 'departments')"
+            "('organizations', 'organization_memberships', 'events', 'departments', "
+            "'company_dna_versions')"
         )
     )
     rows = {row.relname: row for row in result.all()}
 
-    assert set(rows) == {"organizations", "organization_memberships", "events", "departments"}
+    assert set(rows) == {
+        "organizations",
+        "organization_memberships",
+        "events",
+        "departments",
+        "company_dna_versions",
+    }
     for table_name, row in rows.items():
         assert row.relrowsecurity is True, f"{table_name} does not have RLS enabled"
         assert row.relforcerowsecurity is True, (
@@ -280,6 +289,69 @@ async def test_tenant_a_cannot_insert_department_into_tenant_b(
                     "INSERT INTO departments "
                     "(id, organization_id, name, function_type) "
                     "VALUES (:id, :org_id, 'rogue', 'ops')"
+                ),
+                {"id": str(uuid.uuid4()), "org_id": str(two_tenants.org_b_id)},
+            )
+
+
+# ---------------------------------------------------------------------
+# 3.6. Company DNA data (M5 Checkpoint 2)
+# ---------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_read_tenant_bs_company_dna_versions(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    await create_draft_version(
+        db_session, organization_id=two_tenants.org_a_id, version="1.0.0"
+    )
+    await create_draft_version(
+        db_session, organization_id=two_tenants.org_b_id, version="1.0.0"
+    )
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        # No organization_id filter at all — proves RLS, not our WHERE clause.
+        result = await db_session.execute(select(CompanyDnaVersionORM))
+        visible_org_ids = {row.organization_id for row in result.scalars().all()}
+
+    assert visible_org_ids == {two_tenants.org_a_id}
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_update_tenant_bs_company_dna_version_row(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    dna_version = await create_draft_version(
+        db_session, organization_id=two_tenants.org_b_id, version="1.0.0"
+    )
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        result = await db_session.execute(
+            text("UPDATE company_dna_versions SET version = 'hijacked' WHERE id = :id"),
+            {"id": str(dna_version.id)},
+        )
+    # RLS silently filters the row out of the UPDATE's target set — zero
+    # rows affected, not an error, and Tenant B's row is untouched.
+    assert result.rowcount == 0
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_insert_company_dna_version_into_tenant_b(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    """Same defense-in-depth check as the department-table equivalent
+    above: even if application code had a bug and tried to write a
+    Company DNA version row tagged with Tenant B's organization_id while
+    scoped as Tenant A, the WITH CHECK clause must reject the insert at
+    the database level."""
+    with pytest.raises(DBAPIError):
+        async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+            await db_session.execute(
+                text(
+                    "INSERT INTO company_dna_versions "
+                    "(id, organization_id, version, status) "
+                    "VALUES (:id, :org_id, '1.0.0', 'draft')"
                 ),
                 {"id": str(uuid.uuid4()), "org_id": str(two_tenants.org_b_id)},
             )

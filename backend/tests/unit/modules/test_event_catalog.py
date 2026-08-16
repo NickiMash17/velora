@@ -5,6 +5,9 @@ from __future__ import annotations
 import pytest
 
 from app.modules.events.domain.catalog import (
+    COMPANY_DNA_COMPILED,
+    COMPANY_DNA_DRAFT_CREATED,
+    COMPANY_DNA_PUBLISHED,
     DEPARTMENT_CREATED,
     MEMBERSHIP_ACTIVATED,
     ORGANIZATION_CREATED,
@@ -22,6 +25,18 @@ def test_membership_activated_maps_to_documented_topic() -> None:
 
 def test_department_created_maps_to_documented_topic() -> None:
     assert topic_for(DEPARTMENT_CREATED) == "department.created"
+
+
+def test_company_dna_draft_created_maps_to_documented_topic() -> None:
+    assert topic_for(COMPANY_DNA_DRAFT_CREATED) == "company_dna.draft_created"
+
+
+def test_company_dna_compiled_maps_to_documented_topic() -> None:
+    assert topic_for(COMPANY_DNA_COMPILED) == "company_dna.compiled"
+
+
+def test_company_dna_published_maps_to_documented_topic() -> None:
+    assert topic_for(COMPANY_DNA_PUBLISHED) == "company_dna.published"
 
 
 def test_uncataloged_event_type_raises() -> None:

@@ -17,11 +17,17 @@ from __future__ import annotations
 ORGANIZATION_CREATED = "OrganizationCreated"
 MEMBERSHIP_ACTIVATED = "MembershipActivated"
 DEPARTMENT_CREATED = "DepartmentCreated"
+COMPANY_DNA_DRAFT_CREATED = "CompanyDnaDraftCreated"
+COMPANY_DNA_COMPILED = "CompanyDnaCompiled"
+COMPANY_DNA_PUBLISHED = "CompanyDnaPublished"
 
 _TOPICS: dict[str, str] = {
     ORGANIZATION_CREATED: "organization.created",
     MEMBERSHIP_ACTIVATED: "membership.activated",
     DEPARTMENT_CREATED: "department.created",
+    COMPANY_DNA_DRAFT_CREATED: "company_dna.draft_created",
+    COMPANY_DNA_COMPILED: "company_dna.compiled",
+    COMPANY_DNA_PUBLISHED: "company_dna.published",
 }
 
 
