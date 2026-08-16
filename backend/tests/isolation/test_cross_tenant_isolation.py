@@ -35,10 +35,14 @@ from app.modules.departments.application.services import create_department
 from app.modules.departments.domain.enums import FunctionType
 from app.modules.departments.infrastructure.orm import DepartmentORM
 from app.modules.events.infrastructure.orm import EventORM
+from app.modules.goals.application.services import propose_goal
+from app.modules.goals.infrastructure.orm import GoalORM
 from app.modules.identity.domain.entities import User
 from app.modules.identity.infrastructure.repository import UserRepository
 from app.modules.organizations.application.services import create_organization_with_admin
 from app.modules.organizations.infrastructure.orm import OrganizationMembershipORM, OrganizationORM
+from app.modules.tasks.application.services import create_task
+from app.modules.tasks.infrastructure.orm import TaskORM
 from app.shared.tenancy import set_tenant_context, tenant_scoped_transaction
 
 pytestmark = pytest.mark.integration
@@ -120,7 +124,7 @@ async def test_tenant_tables_have_rls_enabled_and_forced(db_session: AsyncSessio
             "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class "
             "WHERE relname IN "
             "('organizations', 'organization_memberships', 'events', 'departments', "
-            "'company_dna_versions', 'ai_employees', 'ai_employee_skills')"
+            "'company_dna_versions', 'ai_employees', 'ai_employee_skills', 'goals', 'tasks')"
         )
     )
     rows = {row.relname: row for row in result.all()}
@@ -133,6 +137,8 @@ async def test_tenant_tables_have_rls_enabled_and_forced(db_session: AsyncSessio
         "company_dna_versions",
         "ai_employees",
         "ai_employee_skills",
+        "goals",
+        "tasks",
     }
     for table_name, row in rows.items():
         assert row.relrowsecurity is True, f"{table_name} does not have RLS enabled"
@@ -672,6 +678,143 @@ async def test_global_catalog_tables_have_no_rls_at_all(db_session: AsyncSession
     )
     rows = {row.relname: row.relrowsecurity for row in result.all()}
     assert rows == {"ai_employee_templates": False, "skills": False}
+
+
+# ---------------------------------------------------------------------
+# 3.8. Goals data (M5 Checkpoint 4)
+# ---------------------------------------------------------------------
+
+_GOAL_METRIC = {"metric": "churn_rate", "target": 0.05, "current": 0.08}
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_read_tenant_bs_goals(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    await propose_goal(
+        db_session,
+        organization_id=two_tenants.org_a_id,
+        title="Tenant A Goal",
+        success_metric=_GOAL_METRIC,
+    )
+    await propose_goal(
+        db_session,
+        organization_id=two_tenants.org_b_id,
+        title="Tenant B Goal",
+        success_metric=_GOAL_METRIC,
+    )
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        # No organization_id filter at all — proves RLS, not our WHERE clause.
+        result = await db_session.execute(select(GoalORM))
+        visible_org_ids = {row.organization_id for row in result.scalars().all()}
+
+    assert visible_org_ids == {two_tenants.org_a_id}
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_update_tenant_bs_goal_row(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    goal = await propose_goal(
+        db_session,
+        organization_id=two_tenants.org_b_id,
+        title="Tenant B Goal",
+        success_metric=_GOAL_METRIC,
+    )
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        result = await db_session.execute(
+            text("UPDATE goals SET title = 'hijacked' WHERE id = :id"),
+            {"id": str(goal.id)},
+        )
+    # RLS silently filters the row out of the UPDATE's target set — zero
+    # rows affected, not an error, and Tenant B's row is untouched.
+    assert result.rowcount == 0
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_insert_goal_into_tenant_b(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    """Same defense-in-depth check as the department/AI-employee-table
+    equivalents above: even if application code had a bug and tried to
+    write a Goal row tagged with Tenant B's organization_id while scoped
+    as Tenant A, the WITH CHECK clause must reject the insert at the
+    database level."""
+    with pytest.raises(DBAPIError):
+        async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+            await db_session.execute(
+                text(
+                    "INSERT INTO goals "
+                    "(id, organization_id, title, success_metric, status) "
+                    "VALUES (:id, :org_id, 'rogue', '{}', 'proposed')"
+                ),
+                {"id": str(uuid.uuid4()), "org_id": str(two_tenants.org_b_id)},
+            )
+
+
+# ---------------------------------------------------------------------
+# 3.9. Tasks data (M5 Checkpoint 5)
+# ---------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_read_tenant_bs_tasks(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    await create_task(
+        db_session, organization_id=two_tenants.org_a_id, idempotency_key="tenant-a-task"
+    )
+    await create_task(
+        db_session, organization_id=two_tenants.org_b_id, idempotency_key="tenant-b-task"
+    )
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        # No organization_id filter at all — proves RLS, not our WHERE clause.
+        result = await db_session.execute(select(TaskORM))
+        visible_org_ids = {row.organization_id for row in result.scalars().all()}
+
+    assert visible_org_ids == {two_tenants.org_a_id}
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_update_tenant_bs_task_row(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    task = await create_task(
+        db_session, organization_id=two_tenants.org_b_id, idempotency_key="tenant-b-update"
+    )
+
+    async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+        result = await db_session.execute(
+            text("UPDATE tasks SET idempotency_key = 'hijacked' WHERE id = :id"),
+            {"id": str(task.id)},
+        )
+    # RLS silently filters the row out of the UPDATE's target set — zero
+    # rows affected, not an error, and Tenant B's row is untouched.
+    assert result.rowcount == 0
+
+
+@pytest.mark.asyncio
+async def test_tenant_a_cannot_insert_task_into_tenant_b(
+    db_session: AsyncSession, two_tenants: TwoTenants
+) -> None:
+    """Same defense-in-depth check as the department/AI-employee/goal-table
+    equivalents above: even if application code had a bug and tried to
+    write a Task row tagged with Tenant B's organization_id while scoped
+    as Tenant A, the WITH CHECK clause must reject the insert at the
+    database level."""
+    with pytest.raises(DBAPIError):
+        async with tenant_scoped_transaction(db_session, two_tenants.org_a_id):
+            await db_session.execute(
+                text(
+                    "INSERT INTO tasks "
+                    "(id, organization_id, status, idempotency_key) "
+                    "VALUES (:id, :org_id, 'pending', 'rogue-key')"
+                ),
+                {"id": str(uuid.uuid4()), "org_id": str(two_tenants.org_b_id)},
+            )
 
 
 # ---------------------------------------------------------------------

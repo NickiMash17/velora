@@ -25,6 +25,9 @@ EMPLOYEE_CONFIGURED = "EmployeeConfigured"
 EMPLOYEE_ACTIVATED = "EmployeeActivated"
 EMPLOYEE_PAUSED = "EmployeePaused"
 EMPLOYEE_RETIRED = "EmployeeRetired"
+GOAL_PROPOSED = "GoalProposed"
+GOAL_ACTIVATED = "GoalActivated"
+TASK_ASSIGNED = "TaskAssigned"
 
 _TOPICS: dict[str, str] = {
     ORGANIZATION_CREATED: "organization.created",
@@ -38,6 +41,9 @@ _TOPICS: dict[str, str] = {
     EMPLOYEE_ACTIVATED: "employee.activated",
     EMPLOYEE_PAUSED: "employee.paused",
     EMPLOYEE_RETIRED: "employee.retired",
+    GOAL_PROPOSED: "goal.proposed",
+    GOAL_ACTIVATED: "goal.activated",
+    TASK_ASSIGNED: "task.assigned",
 }
 
 
