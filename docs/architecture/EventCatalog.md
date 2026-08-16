@@ -144,7 +144,7 @@ rather than a standalone Approval domain; see [Security.md §5.2](./Security.md#
 
 | Status | Type | Producer | Consumers | Payload (key fields) | Purpose |
 |---|---|---|---|---|---|
-| ✅ Implemented | `GoalProposed` | Goal Engine | Notification Service (human approval prompt) | `goal_id`, `proposed_plan` | Decomposition proposed, awaiting approval unless auto-approve policy applies — M5 has no decomposition engine, so `proposed_plan` is always `{}` for a manually-created Goal |
+| ✅ Implemented | `GoalProposed` | Goal Engine | Notification Service (human approval prompt) | `goal_id`, `proposed_plan` | Decomposition proposed, awaiting approval unless auto-approve policy applies. **`proposed_plan` in M5: `[INFERENCE]`, not a documented contract — see the note below the table.** |
 | ✅ Implemented | `GoalActivated` | Goal Engine | Task Board, Analytics, Audit Log | `goal_id` | Approved (manually or auto) and live |
 | 📋 Planned | `GoalAssigned` | Goal Engine | Task Board, Notification Service | `goal_id`, `department_id` | Routed to a department — M5 sets `department_id` at creation time directly, no separate assignment event |
 | 📋 Planned | `GoalAtRisk` | Goal Engine (Evaluation Loop) | Notification Service, Audit Log | `goal_id`, `current_metric_value` | Continuous evaluation detected stalled progress — no Evaluation Loop exists in M5 |
@@ -158,6 +158,30 @@ rather than a standalone Approval domain; see [Security.md §5.2](./Security.md#
 | 📋 Planned | `ApprovalRequested` | Skill Runtime / Agent Collaboration | Notification Service, Audit Log | `task_id`, `ai_employee_id`, `skill_key`, `attempted_action_summary` | A policy-gated action needs human sign-off before executing; task moves to `blocked` (`reason=awaiting_approval`) — see [Security.md §5.2](./Security.md#52-human-in-the-loop-gates) — deferred pending machine identity |
 | 📋 Planned | `ApprovalGranted` | BFF (human action) | Skill Runtime (resumes execution), Audit Log | `task_id`, `approved_by_user_id` | Human approved; the gated skill call proceeds — deferred pending machine identity |
 | 📋 Planned | `ApprovalDenied` | BFF (human action) | Skill Runtime, Task Board, Audit Log | `task_id`, `denied_by_user_id`, `reason?` | Human rejected; task returns to a terminal or reassignable state — deferred pending machine identity |
+
+**Known/open issue — `GoalProposed.proposed_plan` in M5 (added during the
+Checkpoint 4 review, not resolved):** `StateMachines.md §4`'s own guard on
+`[*] → Proposed` is "Goal Engine has produced a decomposition plan," and
+`DomainModel.md §2.8`/`PRD.md §6.4`/`WireframeSpec.md §10`/`UserJourney.md`
+all describe Goal creation as producing a real, human-reviewable
+decomposition — `proposed_plan` is **not documented as optional** anywhere
+in the source material. **No document defines a manual/no-decomposition
+Goal-creation path**, and none defines an empty or placeholder
+representation for `proposed_plan` when no decomposition has occurred.
+
+M5 has no Goal Engine and no decomposition pipeline at all (out of scope
+— see the M5 Domain Contract's Domain 4 non-goals). Its `POST /goals`
+endpoint creates a Goal directly from human input and emits `GoalProposed`
+with `proposed_plan: {}` — this is an **`[INFERENCE]`**, not a value
+sanctioned by any pre-existing document. (An earlier version of this row
+stated the `{}` behavior as if it were settled fact; that wording was
+circular — it was added by the same implementation making the inference,
+not independent evidence for it.) **`{}` is not a stable payload contract**
+— no frontend or backend behavior should be built against it, and it
+should be revisited once a real Goal Engine (or an explicit decision to
+support manual, decomposition-free Goals) exists. The documented Goal
+Engine behavior above (decomposition-before-`Proposed`) remains the
+target for that eventual implementation and is preserved here unchanged.
 
 ### 5.7 Collaboration
 
