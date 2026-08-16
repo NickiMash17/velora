@@ -63,7 +63,7 @@ Recap from [ADR 0001](./decisions/0001-event-store-implementation.md): every eve
 
 ### 5.1 Identity & Organization
 
-**Implementation status:** mixed — see per-row markers (§5.2 is also mixed, as of M5 Checkpoint 3).
+**Implementation status:** mixed — see per-row markers (§5.2 and §5.6 are also mixed, as of M5 Checkpoints 3 and 4).
 
 | Status | Type | Producer | Consumers | Payload (key fields) | Purpose |
 |---|---|---|---|---|---|
@@ -130,24 +130,34 @@ pipeline finishing, per the locked M5 decision.
 
 ### 5.6 Goals, Projects & Tasks
 
-**Implementation status:** 📋 Planned — no Goals/Tasks module exists yet; none of the events below has an emitter in code. The three `Approval*` rows are the M5-approved human-in-the-loop events (Domain Contract review, Decision 1/8) — modeled here against `tasks`/`TaskBlocked`, per the M5 decision to attach approval to a task-scoped sidecar (`task_pending_approvals`) rather than a standalone Approval domain; see [Security.md §5.2](./Security.md#52-human-in-the-loop-gates).
+**Implementation status:** mixed — `backend/app/modules/goals` (M5
+Checkpoint 4) gives `GoalProposed`/`GoalActivated` real emitters; see
+per-row markers. Every other row remains 📋 Planned: `GoalAssigned`/
+`GoalAtRisk`/`GoalCompleted` have no M5 producer (only `proposed→active`
+is reachable — Finding 2, M5 Step 3 plan); Projects are out of scope
+entirely (decision 7); Tasks/Approvals are deferred pending machine
+identity (Finding 3, M5 Step 3 plan). The three `Approval*` rows are the
+M5-approved human-in-the-loop events (Domain Contract review, Decision
+1/8) — modeled here against `tasks`/`TaskBlocked`, per the M5 decision to
+attach approval to a task-scoped sidecar (`task_pending_approvals`)
+rather than a standalone Approval domain; see [Security.md §5.2](./Security.md#52-human-in-the-loop-gates).
 
-| Type | Producer | Consumers | Payload (key fields) | Purpose |
-|---|---|---|---|---|
-| `GoalProposed` | Goal Engine | Notification Service (human approval prompt) | `goal_id`, `proposed_plan` | Decomposition proposed, awaiting approval unless auto-approve policy applies |
-| `GoalActivated` | Goal Engine | Task Board, Analytics, Audit Log | `goal_id` | Approved (manually or auto) and live |
-| `GoalAssigned` | Goal Engine | Task Board, Notification Service | `goal_id`, `department_id` | Routed to a department |
-| `GoalAtRisk` | Goal Engine (Evaluation Loop) | Notification Service, Audit Log | `goal_id`, `current_metric_value` | Continuous evaluation detected stalled progress |
-| `GoalCompleted` | Goal Engine (Evaluation Loop) | Billing (if tied to plan reporting), Analytics, Audit Log | `goal_id`, `final_metric_value` | Success metric target reached |
-| `ProjectCreated` / `ProjectCompleted` / `ProjectCancelled` | Goal Engine or direct human action | Task Board, Analytics, Audit Log | `project_id`, `goal_id?` | Project lifecycle transitions ([DomainModel.md §2.9](./DomainModel.md#29-project)) — **out of scope for M5**, per the M5 Domain Contract review's decision to defer Projects |
-| `TaskAssigned` | Goal Engine / Agent Collaboration | Task Board, Notification Service | `task_id`, `department_id` | Lands on the shared Task Board |
-| `TaskClaimed` | Agent Collaboration | Task Board, Audit Log | `task_id`, `ai_employee_id` | Optimistic-lock claim succeeded |
-| `TaskBlocked` | Agent Collaboration | Notification Service | `task_id`, `reason` | Awaiting dependency or human input — `reason` includes `awaiting_approval`, the trigger for the three events below |
-| `TaskCompleted` | Agent Collaboration | Goal Engine (metric re-evaluation), Memory Indexing, Billing, Audit Log | `task_id`, `outcome` | Terminal success |
-| `TaskFailed` | Agent Collaboration | Notification Service (escalation), Goal Engine, Audit Log | `task_id`, `error_class`, `retry_count` | Terminal failure after retry policy exhausted — see [StateMachines.md §3](./StateMachines.md#3-task-lifecycle) |
-| `ApprovalRequested` | Skill Runtime / Agent Collaboration | Notification Service, Audit Log | `task_id`, `ai_employee_id`, `skill_key`, `attempted_action_summary` | A policy-gated action needs human sign-off before executing; task moves to `blocked` (`reason=awaiting_approval`) — see [Security.md §5.2](./Security.md#52-human-in-the-loop-gates) |
-| `ApprovalGranted` | BFF (human action) | Skill Runtime (resumes execution), Audit Log | `task_id`, `approved_by_user_id` | Human approved; the gated skill call proceeds |
-| `ApprovalDenied` | BFF (human action) | Skill Runtime, Task Board, Audit Log | `task_id`, `denied_by_user_id`, `reason?` | Human rejected; task returns to a terminal or reassignable state |
+| Status | Type | Producer | Consumers | Payload (key fields) | Purpose |
+|---|---|---|---|---|---|
+| ✅ Implemented | `GoalProposed` | Goal Engine | Notification Service (human approval prompt) | `goal_id`, `proposed_plan` | Decomposition proposed, awaiting approval unless auto-approve policy applies — M5 has no decomposition engine, so `proposed_plan` is always `{}` for a manually-created Goal |
+| ✅ Implemented | `GoalActivated` | Goal Engine | Task Board, Analytics, Audit Log | `goal_id` | Approved (manually or auto) and live |
+| 📋 Planned | `GoalAssigned` | Goal Engine | Task Board, Notification Service | `goal_id`, `department_id` | Routed to a department — M5 sets `department_id` at creation time directly, no separate assignment event |
+| 📋 Planned | `GoalAtRisk` | Goal Engine (Evaluation Loop) | Notification Service, Audit Log | `goal_id`, `current_metric_value` | Continuous evaluation detected stalled progress — no Evaluation Loop exists in M5 |
+| 📋 Planned | `GoalCompleted` | Goal Engine (Evaluation Loop) | Billing (if tied to plan reporting), Analytics, Audit Log | `goal_id`, `final_metric_value` | Success metric target reached — no Evaluation Loop exists in M5 |
+| 📋 Planned | `ProjectCreated` / `ProjectCompleted` / `ProjectCancelled` | Goal Engine or direct human action | Task Board, Analytics, Audit Log | `project_id`, `goal_id?` | Project lifecycle transitions ([DomainModel.md §2.9](./DomainModel.md#29-project)) — **out of scope for M5**, per the M5 Domain Contract review's decision to defer Projects |
+| 📋 Planned | `TaskAssigned` | Goal Engine / Agent Collaboration | Task Board, Notification Service | `task_id`, `department_id` | Lands on the shared Task Board — deferred pending machine identity |
+| 📋 Planned | `TaskClaimed` | Agent Collaboration | Task Board, Audit Log | `task_id`, `ai_employee_id` | Optimistic-lock claim succeeded — deferred pending machine identity |
+| 📋 Planned | `TaskBlocked` | Agent Collaboration | Notification Service | `task_id`, `reason` | Awaiting dependency or human input — `reason` includes `awaiting_approval`, the trigger for the three events below — deferred pending machine identity |
+| 📋 Planned | `TaskCompleted` | Agent Collaboration | Goal Engine (metric re-evaluation), Memory Indexing, Billing, Audit Log | `task_id`, `outcome` | Terminal success — deferred pending machine identity |
+| 📋 Planned | `TaskFailed` | Agent Collaboration | Notification Service (escalation), Goal Engine, Audit Log | `task_id`, `error_class`, `retry_count` | Terminal failure after retry policy exhausted — see [StateMachines.md §3](./StateMachines.md#3-task-lifecycle) — deferred pending machine identity |
+| 📋 Planned | `ApprovalRequested` | Skill Runtime / Agent Collaboration | Notification Service, Audit Log | `task_id`, `ai_employee_id`, `skill_key`, `attempted_action_summary` | A policy-gated action needs human sign-off before executing; task moves to `blocked` (`reason=awaiting_approval`) — see [Security.md §5.2](./Security.md#52-human-in-the-loop-gates) — deferred pending machine identity |
+| 📋 Planned | `ApprovalGranted` | BFF (human action) | Skill Runtime (resumes execution), Audit Log | `task_id`, `approved_by_user_id` | Human approved; the gated skill call proceeds — deferred pending machine identity |
+| 📋 Planned | `ApprovalDenied` | BFF (human action) | Skill Runtime, Task Board, Audit Log | `task_id`, `denied_by_user_id`, `reason?` | Human rejected; task returns to a terminal or reassignable state — deferred pending machine identity |
 
 ### 5.7 Collaboration
 
