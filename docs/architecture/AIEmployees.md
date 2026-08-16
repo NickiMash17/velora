@@ -43,11 +43,11 @@ Draft → Configured → Active ⇄ Paused → Retired
 | `paused` | Temporarily disabled | Manual pause, or automatic pause on policy violation / budget exhaustion |
 | `retired` | Archived | Explicit retirement — memory and audit history retained, not deleted |
 
-Every transition emits an event (`ai_employee.hired`, `.activated`, `.paused`, `.retired`) consumed by:
+Every transition emits a cataloged event — `EmployeeHired`, `EmployeeConfigured`, `EmployeeActivated`, `EmployeePaused`, `EmployeeRetired` (topics `employee.hired`/`employee.configured`/`employee.activated`/`employee.paused`/`employee.retired`; full producer/consumer/payload detail in [EventCatalog.md §5.2](./EventCatalog.md#52-ai-workforce), 📋 Planned — no `ai_employees` module exists yet) — consumed by:
 
 - **Billing** — seat metering keys off `active` status.
 - **Audit Log** — every transition is independently attributable and timestamped.
-- **Goal Engine / Task Board** — a `.paused` or `.retired` transition triggers reassignment of any `claimed`/`in_progress` tasks rather than leaving them stranded.
+- **Goal Engine / Task Board** — an `EmployeePaused` or `EmployeeRetired` transition triggers reassignment of any `claimed`/`in_progress` tasks rather than leaving them stranded.
 
 A Digital Employee **cannot skip `configured`** — a Digital Employee without a bound DNA version and an explicit permission scope cannot be activated. This is enforced at the Provisioning Service level, not left to UI validation.
 

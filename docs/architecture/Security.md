@@ -96,6 +96,8 @@ When a Digital Employee acts "on behalf of" a human (e.g., sending an email as a
 
 Policy-flagged action categories (financial transactions, external communications above a risk threshold) require a signed human approval event before the Skill Runtime will execute them — this is the `approve` autonomy level from [AIEmployees.md §6](./AIEmployees.md#6-human-oversight-model-autonomy-levels), enforced structurally rather than as a UI convention.
 
+**Data model decision (M5 Domain Contract review):** there is no dedicated Approval table. The gated action attaches to the Task it's blocking — a narrow `task_pending_approvals` record, 1:1 with `tasks` (`task_id` as both PK and FK), rather than a standalone polymorphic Approval domain. This is the smallest model consistent with the autonomy model above: the trigger is always a specific task's gated action, and the record exists only while that task is blocked awaiting sign-off. See [EventCatalog.md §5.6](./EventCatalog.md#56-goals-projects--tasks) for the three events this produces (`ApprovalRequested`/`Granted`/`Denied`, 📋 Planned). Documentation only as of this note — no table, migration, repository, or endpoint exists yet.
+
 ## 6. Encryption
 
 | Layer | Mechanism |

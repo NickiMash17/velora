@@ -1,23 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Velora",
   description: "The Digital Workforce Platform",
 };
 
+/**
+ * Meridian deliberately uses each OS's own native system-font stack rather
+ * than an embedded custom typeface (docs/design/DesignSystem.md §5.1) — no
+ * `next/font` loading here, `--font-sans`/`--font-mono` in globals.css are
+ * literal font stacks.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,9 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api-client";
@@ -37,11 +38,11 @@ export function CreateOrganizationForm() {
         />
       </div>
       {createMutation.isError && (
-        <p role="alert" className="text-sm text-destructive">
+        <FormError>
           {createMutation.error instanceof ApiError
             ? createMutation.error.message
             : "Something went wrong. Please try again."}
-        </p>
+        </FormError>
       )}
       <Button type="submit" disabled={createMutation.isPending}>
         {createMutation.isPending ? "Creating…" : "Create organization"}

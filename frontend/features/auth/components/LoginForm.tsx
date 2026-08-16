@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api-client";
@@ -56,14 +57,14 @@ export function LoginForm() {
         />
       </div>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <FormError>
           {error instanceof ApiError ? error.message : "Something went wrong. Please try again."}
           {error instanceof ApiError &&
             error.code === "rate_limited" &&
             typeof error.details.retry_after_seconds === "number" && (
               <> Try again in {error.details.retry_after_seconds}s.</>
             )}
-        </p>
+        </FormError>
       )}
       <Button type="submit" disabled={loginMutation.isPending}>
         {loginMutation.isPending ? "Logging in…" : "Log in"}

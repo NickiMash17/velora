@@ -7,19 +7,21 @@ it doesn't exist." This module mirrors that rule in code — nothing calls
 uncataloged event type fails loudly instead of silently going out with a
 made-up topic.
 
-Only the two events Milestone 2 actually needs are registered here — see
-docs/architecture/EventCatalog.md §5.1 for their full producer/consumer/
-payload documentation. Do not add speculative future events.
+Only events with a real emitter in this codebase are registered here —
+see docs/architecture/EventCatalog.md §5.1 for their full producer/
+consumer/payload documentation. Do not add speculative future events.
 """
 
 from __future__ import annotations
 
 ORGANIZATION_CREATED = "OrganizationCreated"
 MEMBERSHIP_ACTIVATED = "MembershipActivated"
+DEPARTMENT_CREATED = "DepartmentCreated"
 
 _TOPICS: dict[str, str] = {
     ORGANIZATION_CREATED: "organization.created",
     MEMBERSHIP_ACTIVATED: "membership.activated",
+    DEPARTMENT_CREATED: "department.created",
 }
 
 
