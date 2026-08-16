@@ -131,13 +131,18 @@ pipeline finishing, per the locked M5 decision.
 ### 5.6 Goals, Projects & Tasks
 
 **Implementation status:** mixed — `backend/app/modules/goals` (M5
-Checkpoint 4) gives `GoalProposed`/`GoalActivated` real emitters; see
-per-row markers. Every other row remains 📋 Planned: `GoalAssigned`/
-`GoalAtRisk`/`GoalCompleted` have no M5 producer (only `proposed→active`
-is reachable — Finding 2, M5 Step 3 plan); Projects are out of scope
-entirely (decision 7); Tasks/Approvals are deferred pending machine
-identity (Finding 3, M5 Step 3 plan). The three `Approval*` rows are the
-M5-approved human-in-the-loop events (Domain Contract review, Decision
+Checkpoint 4) gives `GoalProposed`/`GoalActivated` real emitters;
+`backend/app/modules/tasks` (M5 Checkpoint 5) gives `TaskAssigned` a real
+emitter too (Task *creation* only — see per-row markers). Every other row remains
+📋 Planned: `GoalAssigned`/`GoalAtRisk`/`GoalCompleted` have no M5
+producer (only `proposed→active` is reachable — Finding 2, M5 Step 3
+plan); Projects are out of scope entirely (decision 7); every Task
+transition *beyond creation*, and all of Approvals, are deferred pending
+machine identity (Finding 3, M5 Step 3 plan) — `TaskAssigned` is exempt
+from that deferral because creating a Task doesn't require claiming one
+(an earlier pass of this table incorrectly lumped `TaskAssigned` in with
+the claim-dependent rows; corrected here). The three `Approval*` rows are
+the M5-approved human-in-the-loop events (Domain Contract review, Decision
 1/8) — modeled here against `tasks`/`TaskBlocked`, per the M5 decision to
 attach approval to a task-scoped sidecar (`task_pending_approvals`)
 rather than a standalone Approval domain; see [Security.md §5.2](./Security.md#52-human-in-the-loop-gates).
@@ -150,7 +155,7 @@ rather than a standalone Approval domain; see [Security.md §5.2](./Security.md#
 | 📋 Planned | `GoalAtRisk` | Goal Engine (Evaluation Loop) | Notification Service, Audit Log | `goal_id`, `current_metric_value` | Continuous evaluation detected stalled progress — no Evaluation Loop exists in M5 |
 | 📋 Planned | `GoalCompleted` | Goal Engine (Evaluation Loop) | Billing (if tied to plan reporting), Analytics, Audit Log | `goal_id`, `final_metric_value` | Success metric target reached — no Evaluation Loop exists in M5 |
 | 📋 Planned | `ProjectCreated` / `ProjectCompleted` / `ProjectCancelled` | Goal Engine or direct human action | Task Board, Analytics, Audit Log | `project_id`, `goal_id?` | Project lifecycle transitions ([DomainModel.md §2.9](./DomainModel.md#29-project)) — **out of scope for M5**, per the M5 Domain Contract review's decision to defer Projects |
-| 📋 Planned | `TaskAssigned` | Goal Engine / Agent Collaboration | Task Board, Notification Service | `task_id`, `department_id` | Lands on the shared Task Board — deferred pending machine identity |
+| ✅ Implemented | `TaskAssigned` | Goal Engine / Agent Collaboration | Task Board, Notification Service | `task_id`, `department_id` | Lands on the shared Task Board — M5 emits this on Task creation only; `department_id` is derived from the referenced Goal's `department_id` when `goal_id` is provided, `null` otherwise (a real lookup of already-linked data, not fabricated content — no document specifies this derivation explicitly, flagged here) |
 | 📋 Planned | `TaskClaimed` | Agent Collaboration | Task Board, Audit Log | `task_id`, `ai_employee_id` | Optimistic-lock claim succeeded — deferred pending machine identity |
 | 📋 Planned | `TaskBlocked` | Agent Collaboration | Notification Service | `task_id`, `reason` | Awaiting dependency or human input — `reason` includes `awaiting_approval`, the trigger for the three events below — deferred pending machine identity |
 | 📋 Planned | `TaskCompleted` | Agent Collaboration | Goal Engine (metric re-evaluation), Memory Indexing, Billing, Audit Log | `task_id`, `outcome` | Terminal success — deferred pending machine identity |
